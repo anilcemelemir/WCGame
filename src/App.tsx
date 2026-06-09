@@ -64,6 +64,10 @@ function createBenchIds(squad: Player[], assignments: Record<string, string>) {
   return squad.filter((player) => !assignedIds.has(player.id)).slice(0, 12).map((player) => player.id);
 }
 
+function normalizeRoomCode(value: string) {
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 6);
+}
+
 function liveEventDelay(event: MatchEvent) {
   if (event.type === "kickoff") return 1450;
   if (event.type === "analysis") return 1650;
@@ -205,6 +209,7 @@ export function App() {
   const [lobbyRoom, setLobbyRoom] = useState<LobbyRoom | null>(null);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [lobbyError, setLobbyError] = useState("");
+  const [lobbyConnectingAction, setLobbyConnectingAction] = useState<"create" | "join" | null>(null);
   const [lobbySocket, setLobbySocket] = useState<ReturnType<typeof createLobbySocket> | null>(null);
   const [stage, setStage] = useState<Stage>("team");
   const [country, setCountry] = useState("Türkiye");
@@ -262,6 +267,9 @@ export function App() {
   const allStepsRevealed = tournamentSteps.length > 0 && revealedStepCount >= tournamentSteps.length;
   const canStartSquad = tournamentTeams.length === 48 && tournamentTeams.includes(country);
   const canUseOnline = nickname.trim().length >= 2;
+  const canJoinLobby = canUseOnline && normalizeRoomCode(joinCode).length === 6 && lobbyConnectingAction === null;
+  const canCreateLobby = canUseOnline && lobbyConnectingAction === null;
+  const isLobbyConnecting = lobbyConnectingAction !== null;
   const onlineSelfStepReady = Boolean(selfId && onlineStepReadyIds.includes(selfId));
   const onlineStepReadyCount = onlineStepReadyIds.length;
   const selectedPenaltyTaker = lineupPlayers.find((player) => player.id === setPieceTakers.penaltyTakerId) ?? bestPenaltyTaker(lineupPlayers);
@@ -360,17 +368,20 @@ export function App() {
       return;
     }
 
-    if (action === "join" && joinCode.trim().length < 4) {
-      setLobbyError("Geçerli bir oda kodu gir.");
+    const code = normalizeRoomCode(joinCode);
+    if (action === "join" && code.length !== 6) {
+      setLobbyError("6 karakterli oda kodunu gir.");
       return;
     }
 
     lobbySocket?.close();
-    setLobbyError("");
+    setLobbyError(action === "create" ? "Oda oluşturuluyor..." : "Odaya katılınıyor...");
+    setLobbyConnectingAction(action);
     let connectedSelfId = selfId;
     const socket = createLobbySocket((event) => {
       if (event.type === "error") {
         setLobbyError(event.payload.message);
+        setLobbyConnectingAction(null);
         return;
       }
 
@@ -379,6 +390,8 @@ export function App() {
         setSelfId(event.payload.selfId);
         setLobbyRoom(event.payload.room);
         setPlayMode("online");
+        setLobbyError("");
+        setLobbyConnectingAction(null);
         return;
       }
 
@@ -471,7 +484,7 @@ export function App() {
     setLobbySocket(socket);
     socket.send(action === "create" ? "room:create" : "room:join", {
       nickname: nickname.trim(),
-      code: joinCode.trim().toUpperCase(),
+      code,
     });
   }
 
@@ -483,6 +496,7 @@ export function App() {
     setPlayMode("offline");
     setLobbyRoom(null);
     setLobbyError("");
+    setLobbyConnectingAction(null);
     setOnlinePlanSubmitted(false);
     setOnlinePlanCount(0);
     setOnlinePlanTotal(0);
@@ -515,6 +529,7 @@ export function App() {
     setOnlinePlanCount(0);
     setOnlinePlanTotal(0);
     setOnlineStepReadyIds([]);
+    setLobbyConnectingAction(null);
     setStage("team");
   }
 
@@ -866,6 +881,7 @@ export function App() {
     setOnlinePlanCount(0);
     setOnlinePlanTotal(0);
     setOnlineStepReadyIds([]);
+    setLobbyConnectingAction(null);
   }
 
   if (!playMode) {
@@ -889,27 +905,31 @@ export function App() {
               />
             </label>
             <div className="entry-actions">
-              <button className="primary-action" disabled={!canUseOnline} onClick={startOffline}>
+              <button className="primary-action" disabled={!canUseOnline || isLobbyConnecting} onClick={startOffline}>
                 <Play size={18} />
                 Offline oyna
               </button>
-              <button className="secondary-action" disabled={!canUseOnline} onClick={() => connectLobby("create")}>
+              <button className="secondary-action" disabled={!canCreateLobby} onClick={() => connectLobby("create")}>
                 <Users size={18} />
-                Oda kur
+                {lobbyConnectingAction === "create" ? "Kuruluyor..." : "Oda kur"}
               </button>
             </div>
-            <div className="join-row">
+            <form className="join-row" onSubmit={(event) => {
+              event.preventDefault();
+              if (canJoinLobby) connectLobby("join");
+            }}>
               <input
                 maxLength={6}
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                inputMode="text"
+                onChange={(event) => setJoinCode(normalizeRoomCode(event.target.value))}
                 placeholder="Oda kodu"
                 value={joinCode}
               />
-              <button disabled={!canUseOnline} onClick={() => connectLobby("join")}>
-                Katıl
+              <button disabled={!canJoinLobby} type="submit">
+                {lobbyConnectingAction === "join" ? "Katılıyor..." : "Katıl"}
               </button>
-            </div>
-            {lobbyError && <p className="form-error">{lobbyError}</p>}
+            </form>
+            {lobbyError && <p className={isLobbyConnecting ? "form-status" : "form-error"}>{lobbyError}</p>}
           </div>
         </section>
       </main>
