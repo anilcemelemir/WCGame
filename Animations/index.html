@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futbol Animasyonları</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="header">
+        <h1>Futbol Simülasyonu Animasyonları</h1>
+        <button id="replayBtn">Animasyonları Tekrar Oynat</button>
+    </div>
+    
+    <div class="animation-container">
+        <!-- 1. Sarı Kart -->
+        <div class="anim-box" id="anim-yellow-card">
+            <h2>Sarı Kart</h2>
+            <div class="scene">
+                <div class="referee-arm-container">
+                    <div class="card yellow-card"></div>
+                    <div class="referee-hand"></div>
+                    <div class="referee-arm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Kırmızı Kart -->
+        <div class="anim-box" id="anim-red-card">
+            <h2>Kırmızı Kart</h2>
+            <div class="scene">
+                <div class="referee-arm-container">
+                    <div class="card red-card"></div>
+                    <div class="referee-hand"></div>
+                    <div class="referee-arm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Düdük -->
+        <div class="anim-box" id="anim-whistle">
+            <h2>Düdük</h2>
+            <div class="scene whistle-scene">
+                <div class="whistle-wrapper">
+                    <div class="real-whistle">
+                        <div class="ring"></div>
+                        <div class="barrel"></div>
+                        <div class="mouthpiece"></div>
+                    </div>
+                </div>
+                <div class="sound-waves">
+                    <span class="wave w1"></span>
+                    <span class="wave w2"></span>
+                    <span class="wave w3"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Gol (Merkez) -->
+        <div class="anim-box" id="anim-goal-1">
+            <h2>Gol (Merkez)</h2>
+            <div class="scene goal-scene">
+                <div class="full-goal goal-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-goal-1">⚽</div>
+                <div class="text-burst goal-text">GOL!</div>
+            </div>
+        </div>
+
+        <!-- 5. Gol (Sağ 90) -->
+        <div class="anim-box" id="anim-goal-2">
+            <h2>Gol (Sağ 90)</h2>
+            <div class="scene goal-scene">
+                <div class="full-goal goal-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-goal-2">⚽</div>
+                <div class="text-burst goal-text">HARİKA!</div>
+            </div>
+        </div>
+
+        <!-- 6. Gol (Sol Alt) -->
+        <div class="anim-box" id="anim-goal-3">
+            <h2>Gol (Sol Alt)</h2>
+            <div class="scene goal-scene">
+                <div class="full-goal goal-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-goal-3">⚽</div>
+                <div class="text-burst goal-text">GOL!</div>
+            </div>
+        </div>
+
+        <!-- 7. Direk (Sağ) -->
+        <div class="anim-box" id="anim-post-1">
+            <h2>Direk (Sağ)</h2>
+            <div class="scene miss-scene">
+                <div class="full-goal post-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-post-1">⚽</div>
+                <div class="text-burst post-text">DİREK!</div>
+            </div>
+        </div>
+
+        <!-- 8. Direk (Üst Direk) -->
+        <div class="anim-box" id="anim-post-2">
+            <h2>Direk (Üst)</h2>
+            <div class="scene miss-scene">
+                <div class="full-goal post-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-post-2">⚽</div>
+                <div class="text-burst post-text">DİREK!</div>
+            </div>
+        </div>
+
+        <!-- 9. Kaçtı (Sol Açık) -->
+        <div class="anim-box" id="anim-out-1">
+            <h2>Kaçtı (Sol Açık)</h2>
+            <div class="scene out-scene">
+                <div class="full-goal out-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-out-1">⚽</div>
+                <div class="text-burst out-text">KAÇTI!</div>
+            </div>
+        </div>
+
+        <!-- 10. Kaçtı (Üstten) -->
+        <div class="anim-box" id="anim-out-2">
+            <h2>Kaçtı (Üstten)</h2>
+            <div class="scene out-scene">
+                <div class="full-goal out-anim">
+                    <div class="goal-net"></div>
+                    <div class="post-left"></div><div class="post-right"></div><div class="crossbar"></div>
+                </div>
+                <div class="ball ball-out-2">⚽</div>
+                <div class="text-burst out-text">KAÇTI!</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

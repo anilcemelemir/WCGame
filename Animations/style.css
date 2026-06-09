@@ -1,0 +1,245 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #0f172a; color: #f8fafc; font-family: 'Outfit', sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem;
+}
+.header { text-align: center; margin-bottom: 2rem; }
+h1 {
+    font-size: 2.2rem; margin-bottom: 1rem;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+button {
+    background: #3b82f6; color: white; border: none; padding: 0.75rem 2rem;
+    font-size: 1.1rem; font-family: inherit; border-radius: 999px; cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
+}
+button:hover { background: #2563eb; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.6); }
+button:active { transform: translateY(1px); }
+
+.animation-container {
+    display: flex; flex-wrap: wrap; gap: 2rem; justify-content: center; width: 100%; max-width: 1400px;
+}
+
+.anim-box {
+    background: #1e293b; border-radius: 1.5rem; padding: 1.5rem; width: 280px; height: 360px;
+    display: flex; flex-direction: column; align-items: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); border: 1px solid #334155; position: relative;
+}
+
+h2 { font-size: 1.25rem; margin-bottom: 1rem; color: #94a3b8; z-index: 10; }
+
+.scene {
+    position: relative; width: 100%; height: 240px; background: #0f172a; border-radius: 1rem; overflow: hidden; box-shadow: inset 0 4px 12px rgba(0,0,0,0.5);
+}
+
+/* Play Triggers */
+.play .referee-arm-container { animation: showArm 3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.play .whistle-wrapper { animation: shakeWhistle 2.5s ease-in-out forwards; }
+.play .wave { animation: emitSound 2.5s ease-out forwards; }
+
+.play .ball-goal-1 { animation: shootGoal1 1.5s ease-in forwards; }
+.play .ball-goal-2 { animation: shootGoal2 1.5s ease-in forwards; }
+.play .ball-goal-3 { animation: shootGoal3 1.5s ease-in forwards; }
+.play .goal-anim { animation: shakeGoal 0.5s ease-in-out 1.5s forwards; }
+.play .goal-text { animation: burstText 1.5s ease-out 1.5s forwards; }
+
+.play .ball-post-1 { animation: shootPost1 2.5s ease-in-out forwards; }
+.play .ball-post-2 { animation: shootPost2 2.5s ease-in-out forwards; }
+.play .post-anim { animation: hitGoalPost 0.5s ease-in-out 1.5s forwards; }
+.play .post-text { animation: burstText 1.5s ease-out 1.5s forwards; }
+
+.play .ball-out-1 { animation: shootOut1 2.5s ease-in forwards; }
+.play .ball-out-2 { animation: shootOut2 2.5s ease-in forwards; }
+.play .out-text { animation: dropText 1.5s ease-in 1.5s forwards; }
+
+
+/* 1 & 2: Simple & Clean Referee Arm */
+.referee-arm-container {
+    position: absolute;
+    bottom: -160px;
+    left: calc(50% - 30px);
+    width: 60px;
+    height: 160px;
+    z-index: 3;
+    transform-origin: bottom center;
+}
+.card {
+    width: 60px;
+    height: 90px;
+    border-radius: 6px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+}
+.yellow-card { background: #facc15; }
+.red-card { background: #ef4444; }
+
+.referee-hand {
+    width: 36px;
+    height: 30px;
+    background: #fca5a5;
+    border-radius: 18px 18px 10px 10px;
+    position: absolute;
+    top: 80px; /* holding the bottom 10px of the card */
+    left: 12px;
+    z-index: 5;
+    box-shadow: inset -3px -3px 5px rgba(0,0,0,0.1);
+}
+.referee-arm {
+    width: 26px;
+    height: 100px;
+    background: #1e293b;
+    border-radius: 5px 5px 0 0;
+    position: absolute;
+    top: 105px;
+    left: 17px;
+    z-index: 3;
+    border: 2px solid #334155;
+    border-bottom: none;
+    box-shadow: inset 4px 0 8px rgba(0,0,0,0.4);
+}
+
+@keyframes showArm {
+    0% { transform: translateY(0) rotate(0); }
+    15% { transform: translateY(-130px) rotate(-3deg); }
+    85% { transform: translateY(-130px) rotate(-3deg); }
+    100% { transform: translateY(20px) rotate(0); }
+}
+
+/* 3: Whistle */
+.whistle-wrapper { position: absolute; left: 60px; top: 50%; transform: translateY(-50%); z-index: 3; }
+.real-whistle { position: relative; width: 60px; height: 40px; }
+.barrel { width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 10px 10px, #cbd5e1, #64748b); position: absolute; left: 20px; top: 2px; box-shadow: inset -3px -3px 6px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.4); }
+.barrel::after { content: ''; position: absolute; width: 14px; height: 14px; background: #0f172a; border-radius: 50%; top: 11px; left: 11px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
+.mouthpiece { width: 28px; height: 14px; background: linear-gradient(to bottom, #94a3b8, #475569); position: absolute; right: 0px; top: 13px; border-radius: 0 6px 6px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.ring { width: 16px; height: 16px; border: 3px solid #94a3b8; border-radius: 50%; position: absolute; left: 6px; top: 12px; }
+
+.sound-waves { position: absolute; left: 140px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; }
+.wave { border: 3px solid transparent; border-right-color: #38bdf8; border-radius: 50%; opacity: 0; position: absolute; }
+.w1 { height: 20px; width: 20px; left: 0; }
+.w2 { height: 40px; width: 40px; left: 10px; }
+.w3 { height: 60px; width: 60px; left: 20px; }
+
+@keyframes shakeWhistle {
+    0%, 100% { transform: translateY(-50%) rotate(0) scale(1); }
+    10%, 30%, 50%, 70% { transform: translateY(-50%) rotate(-12deg) scale(1.15); }
+    20%, 40%, 60%, 80% { transform: translateY(-50%) rotate(12deg) scale(1.15); }
+    90% { transform: translateY(-50%) rotate(0) scale(1); }
+}
+@keyframes emitSound {
+    0%, 10% { opacity: 0; transform: scale(0.5) translateX(-10px); }
+    20% { opacity: 1; }
+    70% { opacity: 1; }
+    90% { opacity: 0; transform: scale(1.5) translateX(20px); }
+    100% { opacity: 0; }
+}
+.play .w1 { animation-delay: 0.1s; }
+.play .w2 { animation-delay: 0.2s; }
+.play .w3 { animation-delay: 0.3s; }
+
+/* 4, 5 & 6: Goals and Balls */
+.full-goal { position: absolute; width: 140px; height: 80px; top: 30px; left: calc(50% - 70px); z-index: 3; }
+.goal-net { position: absolute; width: 130px; height: 75px; top: 5px; left: 5px; background: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.15) 8px, rgba(255,255,255,0.15) 10px), repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.15) 8px, rgba(255,255,255,0.15) 10px); z-index: 1; }
+.post-left, .post-right { width: 6px; height: 80px; background: linear-gradient(90deg, #f8fafc, #cbd5e1); position: absolute; top: 0; box-shadow: 2px 0 5px rgba(0,0,0,0.5); z-index: 2; }
+.post-left { left: 0; }
+.post-right { right: 0; }
+.crossbar { width: 140px; height: 6px; background: linear-gradient(180deg, #f8fafc, #cbd5e1); position: absolute; top: 0; left: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 3; }
+
+.ball { font-size: 2.5rem; position: absolute; bottom: -50px; left: calc(50% - 20px); z-index: 5; line-height: 1; }
+
+.text-burst {
+    font-size: 2.8rem; font-weight: 800; position: absolute; opacity: 0; z-index: 10;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.6); top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 100%; text-align: center;
+}
+.goal-text { color: #4ade80; }
+.post-text { color: #f87171; }
+.out-text { color: #fb923c; }
+
+/* ------------------ GOAL ANIMATIONS ------------------ */
+
+/* Goal 1: Center */
+@keyframes shootGoal1 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    100% { transform: translate(15px, -180px) scale(0.6) rotate(1080deg); }
+}
+
+/* Goal 2: Top Right 90 */
+@keyframes shootGoal2 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    100% { transform: translate(45px, -220px) scale(0.6) rotate(1080deg); }
+}
+
+/* Goal 3: Bottom Left */
+@keyframes shootGoal3 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    100% { transform: translate(-50px, -170px) scale(0.6) rotate(-1080deg); }
+}
+
+@keyframes shakeGoal {
+    0%, 100% { transform: scale(1); }
+    20% { transform: scale(1.02) rotate(3deg); }
+    40% { transform: scale(0.98) rotate(-3deg); }
+    60% { transform: scale(1.01) rotate(1deg); }
+    80% { transform: scale(0.99) rotate(-1deg); }
+}
+
+/* ------------------ POST ANIMATIONS ------------------ */
+
+/* Post 1: Right Post */
+@keyframes shootPost1 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    60% { transform: translate(65px, -190px) scale(0.7) rotate(720deg); } /* Hits right post at 1.5s */
+    100% { transform: translate(-40px, -50px) scale(0.8) rotate(1440deg); opacity: 0; }
+}
+
+/* Post 2: Crossbar */
+@keyframes shootPost2 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    60% { transform: translate(0px, -230px) scale(0.6) rotate(720deg); } /* Hit Crossbar at 1.5s */
+    100% { transform: translate(20px, -50px) scale(0.8) rotate(1080deg); opacity: 0; } /* Bounce out */
+}
+
+@keyframes hitGoalPost {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px) rotate(-2deg); }
+    40% { transform: translateX(3px) rotate(1deg); }
+    60% { transform: translateX(-2px) rotate(-1deg); }
+    80% { transform: translateX(1px); }
+}
+
+/* ------------------ OUT ANIMATIONS ------------------ */
+
+/* Out 1: Wide Left */
+@keyframes shootOut1 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    60% { transform: translate(-90px, -200px) scale(0.5) rotate(-720deg); opacity: 1; }
+    100% { transform: translate(-110px, -240px) scale(0.3) rotate(-1080deg); opacity: 0; }
+}
+
+/* Out 2: Over the bar */
+@keyframes shootOut2 {
+    0% { transform: translate(0, 0) scale(1) rotate(0); }
+    60% { transform: translate(0px, -300px) scale(0.4) rotate(720deg); opacity: 1; } /* Over the net */
+    100% { transform: translate(0px, -350px) scale(0.2) rotate(1080deg); opacity: 0; }
+}
+
+/* Text Animations */
+@keyframes burstText {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.1); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    40% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+}
+@keyframes dropText {
+    0% { opacity: 0; transform: translate(-50%, -80px) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(-5deg); }
+    40% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(5deg); }
+    60% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -20px) scale(1.2); }
+}
