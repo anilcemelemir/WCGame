@@ -33,12 +33,27 @@ function lobbySocketUrl() {
   return lobbyHost.startsWith("ws://") || lobbyHost.startsWith("wss://") ? lobbyHost : `${protocol}://${lobbyHost}`;
 }
 
+function lobbyHealthUrl(lobbyUrl: string) {
+  try {
+    const url = new URL(lobbyUrl);
+    url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+    url.pathname = "/healthz";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function createLobbySocket(onEvent: (event: LobbyClientEvent) => void) {
   const lobbyUrl = lobbySocketUrl();
+  const healthUrl = lobbyHealthUrl(lobbyUrl);
   const pendingMessages: string[] = [];
   let socket: WebSocket | null = null;
   let reconnectTimer: number | null = null;
   let retryCount = 0;
+  let warmingUp = false;
   let closedByClient = false;
 
   const flushPending = () => {
@@ -65,7 +80,7 @@ export function createLobbySocket(onEvent: (event: LobbyClientEvent) => void) {
     reconnectTimer = window.setTimeout(connect, delay);
   };
 
-  const connect = () => {
+  const openSocket = () => {
     if (closedByClient) return;
     if (reconnectTimer) {
       window.clearTimeout(reconnectTimer);
@@ -86,6 +101,24 @@ export function createLobbySocket(onEvent: (event: LobbyClientEvent) => void) {
     socket.addEventListener("error", () => {
       scheduleReconnect();
     });
+  };
+
+  const connect = () => {
+    if (closedByClient || warmingUp) return;
+    if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
+
+    if (!healthUrl) {
+      openSocket();
+      return;
+    }
+
+    warmingUp = true;
+    fetch(healthUrl, { cache: "no-store", mode: "no-cors" })
+      .catch(() => undefined)
+      .finally(() => {
+        warmingUp = false;
+        openSocket();
+      });
   };
 
   connect();
