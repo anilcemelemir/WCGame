@@ -332,7 +332,11 @@ function expectedGoals(team: SimTeam, opponent: SimTeam, teamProfile: TeamProfil
   const defenseStrength = opponentProfile.defenseStrength * opponentShape.defense * (isHome ? 1 : 1 + HOME_ADVANTAGE_BONUS * 0.5);
   const chanceRate = clamp((attackStrength / Math.max(4, defenseStrength)) * matrixMultiplier * microMatchup * teamProfile.fitMultiplier, 0.3, 3);
   const tempoAdjustment = clamp((teamShape.tempo + opponentShape.tempo) / 2, 0.78, 1.26);
-  const qualityAdjustment = clamp(1 + (teamProfile.power - opponentProfile.power) / 180, 0.82, 1.18);
+  const qualityAdjustment = clamp(
+    1 + (teamProfile.power - opponentProfile.power) / 155 + (teamProfile.overall - opponentProfile.overall) / 85,
+    0.74,
+    1.3,
+  );
   const takers = resolveSetPieceTakers(team.lineup, team.setPieceTakers);
   const setPieceBoost = clamp(
     1 +
@@ -341,7 +345,8 @@ function expectedGoals(team: SimTeam, opponent: SimTeam, teamProfile: TeamProfil
     0.96,
     1.1,
   );
-  const underdogBrake = teamProfile.overall + 14 < opponentProfile.overall ? 0.9 : 1;
+  const overallGap = opponentProfile.overall - teamProfile.overall;
+  const underdogBrake = overallGap >= 18 ? 0.72 : overallGap >= 14 ? 0.8 : overallGap >= 10 ? 0.88 : 1;
 
   return clamp(BASE_XG_RATE * chanceRate * tempoAdjustment * qualityAdjustment * setPieceBoost * underdogBrake, 0.25, 3.5);
 }
@@ -360,9 +365,13 @@ function poisson(lambda: number): number {
 }
 
 function applyGoalVariance(goals: number, xg: number): number {
-  const variance = 1 + (Math.random() - 0.5) * 0.22;
+  const variance = 1 + (Math.random() - 0.5) * 0.12;
   const adjusted = Math.round(goals * variance);
   return clamp(adjusted, 0, Math.max(1, Math.ceil(xg + 3)));
+}
+
+function upsetWinChance(overallGap: number): number {
+  return clamp(0.26 - (overallGap - 10) * 0.025, 0.05, 0.26);
 }
 
 function pickPlayer(team: SimTeam, mode: "scorer" | "creator" | "defender"): Player {
@@ -564,8 +573,8 @@ type GoalKind = "open-play" | "penalty" | "freeKick" | "cornerHeader" | "longSho
 
 function setPieceGoalKind(team: SimTeam): GoalKind {
   const takers = resolveSetPieceTakers(team.lineup, team.setPieceTakers);
-  const penaltyBias = takers.penalty ? clamp((penaltySkill(takers.penalty) - 66) / 260, 0.02, 0.12) : 0.04;
-  const freeKickBias = takers.freeKick ? clamp((freeKickSkill(takers.freeKick) - 66) / 360, 0.015, 0.09) : 0.03;
+  const penaltyBias = takers.penalty ? clamp(0.012 + (penaltySkill(takers.penalty) - 72) / 850, 0.008, 0.055) : 0.012;
+  const freeKickBias = takers.freeKick ? clamp(0.018 + (freeKickSkill(takers.freeKick) - 72) / 760, 0.012, 0.07) : 0.018;
   const roll = Math.random();
   if (roll < penaltyBias) return "penalty";
   if (roll < penaltyBias + freeKickBias) return "freeKick";
@@ -786,8 +795,9 @@ function createNarrative(
     { minute: 63 + Math.floor(Math.random() * 12), team: away, opponent: home },
   ].forEach(({ minute, team, opponent }) => {
     const pressure = team.country === home.country ? homeProfile.attack - awayProfile.defense : awayProfile.attack - homeProfile.defense;
-    const freeKickChance = clamp(0.1 + pressure / 260 + freeKickSkill(resolveSetPieceTakers(team.lineup, team.setPieceTakers).freeKick ?? team.lineup[0]) / 820, 0.12, 0.28);
-    const penaltyChance = clamp(0.018 + pressure / 1200 + penaltySkill(resolveSetPieceTakers(team.lineup, team.setPieceTakers).penalty ?? team.lineup[0]) / 3200, 0.018, 0.06);
+    const takers = resolveSetPieceTakers(team.lineup, team.setPieceTakers);
+    const freeKickChance = clamp(0.07 + pressure / 360 + freeKickSkill(takers.freeKick ?? team.lineup[0]) / 1100, 0.08, 0.22);
+    const penaltyChance = clamp(0.006 + Math.max(0, pressure) / 2400 + penaltySkill(takers.penalty ?? team.lineup[0]) / 7200, 0.006, 0.025);
     const roll = Math.random();
     if (roll < penaltyChance) addSetPieceChance(events, team, opponent, minute, "penalty");
     else if (roll < penaltyChance + freeKickChance) addSetPieceChance(events, team, opponent, minute, "freeKick");
@@ -799,7 +809,7 @@ function createNarrative(
     if (homeGoalMinutes.includes(minute) || awayGoalMinutes.includes(minute)) continue;
     const homePressure = Math.max(1, homeProfile.attack + homeProfile.control * 0.35 - awayProfile.defense * 0.38);
     const awayPressure = Math.max(1, awayProfile.attack + awayProfile.control * 0.35 - homeProfile.defense * 0.38);
-    const team = Math.random() < clamp(homePressure / (homePressure + awayPressure), 0.35, 0.65) ? home : away;
+    const team = Math.random() < clamp(homePressure / (homePressure + awayPressure), 0.28, 0.72) ? home : away;
     const opponent = team.country === home.country ? away : home;
     const actor = pickPlayer(team, "creator");
     const roll = Math.random();
@@ -913,19 +923,21 @@ export function simulateMatch(home: SimTeam, away: SimTeam, options: { knockout?
   let decidedByPenalties: string | undefined;
   let winner: string | undefined;
 
-  const homeUnderdog = homeProfile.overall + 14 < awayProfile.overall;
-  const awayUnderdog = awayProfile.overall + 14 < homeProfile.overall;
+  const homeOverallGap = awayProfile.overall - homeProfile.overall;
+  const awayOverallGap = homeProfile.overall - awayProfile.overall;
+  const homeUnderdog = homeOverallGap >= 10;
+  const awayUnderdog = awayOverallGap >= 10;
 
-  if (homeUnderdog && homeScore > awayScore && Math.random() > 0.18) {
+  if (homeUnderdog && homeScore > awayScore && Math.random() > upsetWinChance(homeOverallGap)) {
     homeScore = Math.max(0, awayScore - (Math.random() > 0.45 ? 0 : 1));
   }
-  if (awayUnderdog && awayScore > homeScore && Math.random() > 0.18) {
+  if (awayUnderdog && awayScore > homeScore && Math.random() > upsetWinChance(awayOverallGap)) {
     awayScore = Math.max(0, homeScore - (Math.random() > 0.45 ? 0 : 1));
   }
 
   if (options.knockout && homeScore === awayScore) {
-    const homePenaltyEdge = homeProfile.power + homeProfile.goalkeeping * 0.2 + Math.random() * 9;
-    const awayPenaltyEdge = awayProfile.power + awayProfile.goalkeeping * 0.2 + Math.random() * 9;
+    const homePenaltyEdge = homeProfile.power + homeProfile.goalkeeping * 0.24 + homeProfile.overall * 0.18 + Math.random() * 4.5;
+    const awayPenaltyEdge = awayProfile.power + awayProfile.goalkeeping * 0.24 + awayProfile.overall * 0.18 + Math.random() * 4.5;
     decidedByPenalties = homePenaltyEdge >= awayPenaltyEdge ? home.country : away.country;
     winner = decidedByPenalties;
   } else if (homeScore !== awayScore) {

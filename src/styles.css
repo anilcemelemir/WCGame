@@ -1033,6 +1033,7 @@ button {
   display: grid;
   inset: 0;
   justify-items: center;
+  padding: 10px;
   position: fixed;
   z-index: 20;
 }
@@ -1050,10 +1051,11 @@ button {
   border: 1px solid #dde4dd;
   border-radius: 8px;
   box-shadow: 0 24px 72px rgba(6, 15, 10, 0.28);
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  max-height: min(720px, 92vh);
-  overflow: auto;
+  height: min(720px, calc(100dvh - 20px));
+  overflow: hidden;
   padding: clamp(18px, 3vw, 28px);
   width: min(680px, 94vw);
 }
@@ -1452,8 +1454,18 @@ button {
 }
 
 .live-feed {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.live-feed::before {
+  content: "";
+  margin-top: auto;
 }
 
 .live-event {
@@ -2056,6 +2068,94 @@ button {
   }
 
   .step-actions {
+    width: 100%;
+  }
+
+  .interstitial {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .live-match {
+    border-radius: 0;
+    gap: 8px;
+    height: 100dvh;
+    padding: 10px;
+    width: 100vw;
+  }
+
+  .live-match h2 {
+    font-size: 22px;
+    line-height: 1.08;
+  }
+
+  .live-scoreboard {
+    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .live-scoreboard span {
+    font-size: 11px;
+  }
+
+  .live-scoreboard strong {
+    font-size: 28px;
+    min-width: 88px;
+    padding: 7px 8px;
+  }
+
+  .match-animation {
+    min-height: 104px;
+  }
+
+  .match-animation__scene {
+    height: 104px;
+  }
+
+  .match-animation .full-goal {
+    height: 58px;
+    left: calc(50% - 52px);
+    top: 14px;
+    width: 104px;
+  }
+
+  .match-animation .goal-net {
+    height: 52px;
+    width: 94px;
+  }
+
+  .match-animation .crossbar {
+    width: 104px;
+  }
+
+  .match-animation .post-left,
+  .match-animation .post-right {
+    height: 58px;
+  }
+
+  .match-animation .ball {
+    font-size: 1.8rem;
+  }
+
+  .goal-suspense {
+    font-size: 15px;
+    min-height: 42px;
+  }
+
+  .live-event {
+    gap: 7px;
+    grid-template-columns: 34px 1fr;
+    padding: 8px;
+  }
+
+  .live-event span {
+    font-size: 12px;
+    line-height: 1.32;
+  }
+
+  .ad-slot--interstitial {
+    min-height: 58px;
     width: 100%;
   }
 }

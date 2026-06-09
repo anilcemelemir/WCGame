@@ -236,6 +236,7 @@ export function App() {
   const [goalSuspense, setGoalSuspense] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState<MatchAnimationType | null>(null);
   const liveTimersRef = useRef<number[]>([]);
+  const liveFeedRef = useRef<HTMLDivElement | null>(null);
   const managerCountryRef = useRef(country);
   const selfIdRef = useRef<string | null>(null);
   const [onlinePlanSubmitted, setOnlinePlanSubmitted] = useState(false);
@@ -316,6 +317,11 @@ export function App() {
   useEffect(() => {
     selfIdRef.current = selfId;
   }, [selfId]);
+
+  useEffect(() => {
+    if (!liveFeedRef.current) return;
+    liveFeedRef.current.scrollTop = liveFeedRef.current.scrollHeight;
+  }, [liveEvents]);
 
   useEffect(() => {
     let cancelled = false;
@@ -775,7 +781,7 @@ export function App() {
     };
 
     const revealEvent = (event: MatchEvent) => {
-      setLiveEvents((current) => [event, ...current].slice(0, 12));
+      setLiveEvents((current) => [...current, event].slice(-12));
       if (event.type === "goal") {
         setLiveScore((current) => ({
           home: current.home + (event.team === match.home ? 1 : 0),
@@ -1523,7 +1529,7 @@ export function App() {
               )}
               <MatchEventAnimation type={activeAnimation} />
               <div className={goalSuspense ? "goal-suspense is-active" : "goal-suspense"}>Gol olacak mı?</div>
-              <div className="live-feed">
+              <div className="live-feed" ref={liveFeedRef}>
                 {liveEvents.map((event, index) => (
                   <article className={`live-event live-event--${event.type}`} key={`${event.minute}-${index}`}>
                     <strong>{event.minute}'</strong>
