@@ -40,7 +40,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || '/' }}
           VITE_LOBBY_HOST: ${{ vars.VITE_LOBBY_HOST || secrets.VITE_LOBBY_HOST }}
 
       - name: Upload Pages artifact

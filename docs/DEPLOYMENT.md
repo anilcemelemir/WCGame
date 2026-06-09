@@ -23,9 +23,10 @@ GitHub repository ayarlari:
 
 1. `Settings > Pages` bolumune gir.
 2. `Build and deployment > Source` alanini `GitHub Actions` yap.
-3. `Settings > Secrets and variables > Actions > Variables` bolumune sunlari ekle:
+3. Custom domain icin `playdraft.me` tanimli olmali ve `Enforce HTTPS` acik olmali.
+4. `Settings > Secrets and variables > Actions > Variables` bolumune sunlari ekle:
    - `VITE_LOBBY_HOST`: backend domaini. Ornek: `wcgame-lobby.onrender.com` veya `wcgame-lobby.koyeb.app`
-   - `VITE_BASE_PATH`: GitHub Pages yolun.
+   - `VITE_BASE_PATH`: custom domain icin `/`.
 
 `VITE_BASE_PATH` secimi:
 
@@ -33,7 +34,7 @@ GitHub repository ayarlari:
 - Custom domain kullaniyorsan: `/`
 - Repo adin `USERNAME.github.io` ise: `/`
 
-Workflow varsayilan olarak repo adindan `/<repo>/` uretir. Custom domain veya root repo kullaniyorsan `VITE_BASE_PATH=/` degiskenini mutlaka gir.
+Workflow bu repo icin varsayilan olarak `/` ile build alir ve `public/CNAME` dosyasi sayesinde artifact icinde `playdraft.me` domainini tasir. Repo path uzerinden yayinlamak istersen `VITE_BASE_PATH=/WCGame/` degiskenini tekrar ekleyebilirsin.
 
 ## Backend: Render
 
@@ -66,6 +67,7 @@ VITE_LOBBY_HOST=wcgame-lobby.onrender.com
 ```
 
 Frontend HTTPS oldugu icin uygulama otomatik `wss://wcgame-lobby.onrender.com` ile baglanir.
+Production ortaminda frontend `http://playdraft.me` ile acilirsa uygulama `https://playdraft.me` adresine yonlendirir.
 
 ## Backend: Koyeb
 
@@ -119,7 +121,7 @@ npm run build
 GitHub Pages base path testi:
 
 ```bash
-$env:VITE_BASE_PATH='/WCGame/'
+$env:VITE_BASE_PATH='/'
 npm run build
 ```
 

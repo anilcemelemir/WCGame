@@ -486,6 +486,39 @@ button {
   color: #ffffff;
 }
 
+.mobile-pickbar {
+  align-items: center;
+  background: #eef6f1;
+  border: 1px solid #b9d4c0;
+  border-radius: 8px;
+  color: #174b2b;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 9px 12px;
+}
+
+.mobile-pickbar span {
+  color: #526259;
+  font-weight: 800;
+}
+
+.mobile-pickbar strong {
+  flex: 1;
+}
+
+.mobile-pickbar button {
+  background: #ffffff;
+  border: 1px solid #b9d4c0;
+  border-radius: 8px;
+  color: #174b2b;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
 .pitch-and-pool {
   display: grid;
   gap: 14px;
@@ -592,6 +625,20 @@ button {
 .pitch-slot:not(.is-filled) {
   background: rgba(255, 255, 255, 0.55);
   border-style: dashed;
+}
+
+.pitch-slot.is-targetable {
+  animation: pulseGoal 700ms ease-in-out infinite alternate;
+  background: #ffffff;
+  border-color: #ffd166;
+  cursor: pointer;
+}
+
+.pitch-slot.is-selected-player,
+.mini-player.is-selected-player,
+.bench-chip.is-selected-player {
+  border-color: #102319;
+  box-shadow: 0 0 0 3px rgba(16, 35, 25, 0.16);
 }
 
 .selection-dock,
@@ -1894,10 +1941,27 @@ button {
 }
 
 @media (max-width: 820px) {
+  .workspace {
+    padding: 14px 10px 32px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
     gap: 14px;
+    padding: 18px 14px;
+  }
+
+  .topbar h1 {
+    font-size: 30px;
+  }
+
+  .topbar__metric {
+    width: 100%;
   }
 
   .two-column,
@@ -1912,13 +1976,69 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .formation-strip button {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+
+  .mobile-pickbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    position: sticky;
+    top: 8px;
+    z-index: 8;
+  }
+
+  .mobile-pickbar button {
+    min-height: 38px;
+    width: 100%;
+  }
+
+  .pitch-and-pool {
+    gap: 10px;
+  }
+
   .pitch-board {
-    min-height: 560px;
+    aspect-ratio: 10 / 15;
+    min-height: 0;
+    width: 100%;
   }
 
   .pitch-slot {
+    min-height: 54px;
+    padding: 4px;
+    width: 66px;
+  }
+
+  .pitch-slot span,
+  .pitch-slot em {
+    font-size: 10px;
+  }
+
+  .pitch-slot strong {
+    font-size: 10px;
+    max-width: 58px;
+  }
+
+  .pitch-slot em {
+    min-height: 19px;
+    min-width: 24px;
+  }
+
+  .mini-player-list {
+    max-height: 330px;
+  }
+
+  .mini-player {
+    cursor: pointer;
     min-height: 58px;
-    width: 76px;
+  }
+
+  .bench-chip {
+    cursor: pointer;
+    max-width: 100%;
+    min-height: 42px;
   }
 
   .side-panel {

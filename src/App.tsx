@@ -223,6 +223,7 @@ export function App() {
   const [lineupAssignments, setLineupAssignments] = useState<Record<string, string>>({});
   const [benchIds, setBenchIds] = useState<string[]>([]);
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [selectedMovePlayerId, setSelectedMovePlayerId] = useState<string | null>(null);
   const [startingEleven, setStartingEleven] = useState<Player[]>([]);
   const [result, setResult] = useState<TournamentResult | null>(null);
   const [tournamentSteps, setTournamentSteps] = useState<TournamentStep[]>([]);
@@ -235,6 +236,8 @@ export function App() {
   const [goalSuspense, setGoalSuspense] = useState(false);
   const [activeAnimation, setActiveAnimation] = useState<MatchAnimationType | null>(null);
   const liveTimersRef = useRef<number[]>([]);
+  const managerCountryRef = useRef(country);
+  const selfIdRef = useRef<string | null>(null);
   const [onlinePlanSubmitted, setOnlinePlanSubmitted] = useState(false);
   const [onlinePlanCount, setOnlinePlanCount] = useState(0);
   const [onlinePlanTotal, setOnlinePlanTotal] = useState(0);
@@ -274,6 +277,7 @@ export function App() {
   const onlineStepReadyCount = onlineStepReadyIds.length;
   const selectedPenaltyTaker = lineupPlayers.find((player) => player.id === setPieceTakers.penaltyTakerId) ?? bestPenaltyTaker(lineupPlayers);
   const selectedFreeKickTaker = lineupPlayers.find((player) => player.id === setPieceTakers.freeKickTakerId) ?? bestFreeKickTaker(lineupPlayers);
+  const selectedMovePlayer = squad.find((player) => player.id === selectedMovePlayerId);
 
   useEffect(() => {
     return () => lobbySocket?.close();
@@ -304,6 +308,14 @@ export function App() {
   useEffect(() => {
     latestGroupsRef.current = tournamentGroups;
   }, [tournamentGroups]);
+
+  useEffect(() => {
+    managerCountryRef.current = country;
+  }, [country]);
+
+  useEffect(() => {
+    selfIdRef.current = selfId;
+  }, [selfId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -387,6 +399,7 @@ export function App() {
 
       if (event.type === "room:joined") {
         connectedSelfId = event.payload.selfId;
+        selfIdRef.current = event.payload.selfId;
         setSelfId(event.payload.selfId);
         setLobbyRoom(event.payload.room);
         setPlayMode("online");
@@ -400,10 +413,18 @@ export function App() {
         return;
       }
 
+      if (event.type === "player:left") {
+        setLobbyRoom(event.payload.room);
+        setLobbyError(`${event.payload.nickname} lobiden ayrıldı.`);
+        return;
+      }
+
       if (event.type === "game:start") {
         setLobbyRoom(event.payload.room);
-        const self = event.payload.room.players.find((player) => player.id === connectedSelfId);
-        const selectedTeam = self?.team ?? country;
+        const ownPlayerId = selfIdRef.current ?? connectedSelfId;
+        const self = event.payload.room.players.find((player) => player.id === ownPlayerId);
+        const selectedTeam = self?.team ?? managerCountryRef.current;
+        managerCountryRef.current = selectedTeam;
         setCountry(selectedTeam);
         setSquad([]);
         setStartingEleven([]);
@@ -505,6 +526,7 @@ export function App() {
   }
 
   function selectOnlineTeam(team: string) {
+    managerCountryRef.current = team;
     setCountry(team);
     setSquad([]);
     setStartingEleven([]);
@@ -546,6 +568,7 @@ export function App() {
   }
 
   function selectManagerCountry(team: string) {
+    managerCountryRef.current = team;
     setCountry(team);
     setSquad([]);
     setStartingEleven([]);
@@ -622,6 +645,7 @@ export function App() {
 
       return next;
     });
+    setSelectedMovePlayerId(null);
   }
 
   function sendPlayerToBench(playerId: string) {
@@ -629,6 +653,7 @@ export function App() {
       Object.fromEntries(Object.entries(current).filter(([, assignedPlayerId]) => assignedPlayerId !== playerId)),
     );
     setBenchIds((ids) => (ids.includes(playerId) || ids.length >= 12 ? ids : [...ids, playerId]));
+    setSelectedMovePlayerId(null);
   }
 
   function quickPlacePlayer(player: Player) {
@@ -636,6 +661,15 @@ export function App() {
     const fallbackSlot = selectedFormation.slots.find((slot) => !lineupAssignments[slot.id]);
     const target = emptySlot ?? fallbackSlot;
     if (target) assignPlayerToSlot(player.id, target.id);
+  }
+
+  function selectPlayerForMove(playerId: string) {
+    setSelectedMovePlayerId((current) => (current === playerId ? null : playerId));
+  }
+
+  function placeSelectedPlayer(slotId: string) {
+    if (!selectedMovePlayerId) return;
+    assignPlayerToSlot(selectedMovePlayerId, slotId);
   }
 
   function playWhistle(kind: "short" | "long" = "short") {
@@ -692,7 +726,8 @@ export function App() {
   }
 
   function findFeaturedMatch(step: TournamentStep): MatchResult {
-    return step.matches.find((match) => match.home === country || match.away === country) ?? step.matches[0];
+    const managerCountry = managerCountryRef.current;
+    return step.matches.find((match) => match.home === managerCountry || match.away === managerCountry) ?? step.matches[0];
   }
 
   function playLiveMatch(match: MatchResult, onComplete: () => void) {
@@ -787,9 +822,10 @@ export function App() {
 
     playLiveMatch(featuredMatch, () => {
       const nextRevealedCount = Math.max(stepIndex + 1, revealedStepCount + 1);
+      const managerCountry = managerCountryRef.current;
       const hasFutureUserMatch = steps
         .slice(nextRevealedCount)
-        .some((futureStep) => futureStep.matches.some((match) => match.home === country || match.away === country));
+        .some((futureStep) => futureStep.matches.some((match) => match.home === managerCountry || match.away === managerCountry));
 
       setRevealedStepCount(hasFutureUserMatch || nextRevealedCount >= steps.length ? nextRevealedCount : steps.length);
       setFastForwardedAfterElimination(!hasFutureUserMatch && nextRevealedCount < steps.length);
@@ -1230,8 +1266,20 @@ export function App() {
                 <Activity size={22} />
                 <div>
                   <h2>İlk 11 ve oyun planı</h2>
-                  <p>Saha üzerindeki slotlara oyuncu sürükle, yedekleri belirle ve takım davranışını detaylandır.</p>
+                  <p>Mobilde oyuncuya dokunup saha slotuna yerleştir; masaüstünde sürükle-bırak da kullanabilirsin.</p>
                 </div>
+              </div>
+
+              <div className={selectedMovePlayer ? "mobile-pickbar is-active" : "mobile-pickbar"}>
+                {selectedMovePlayer ? (
+                  <>
+                    <span>Seçili oyuncu</span>
+                    <strong>{selectedMovePlayer.name}</strong>
+                    <button onClick={() => setSelectedMovePlayerId(null)}>Vazgeç</button>
+                  </>
+                ) : (
+                  <span>Oyuncu havuzundan bir oyuncuya dokun, sonra sahadaki slota dokun.</span>
+                )}
               </div>
 
               <div className="formation-strip">
@@ -1253,10 +1301,20 @@ export function App() {
                     const assigned = squad.find((player) => player.id === lineupAssignments[slot.id]);
                     return (
                       <button
-                        className={assigned ? "pitch-slot is-filled" : "pitch-slot"}
+                        className={[
+                          assigned ? "pitch-slot is-filled" : "pitch-slot",
+                          selectedMovePlayerId && !assigned ? "is-targetable" : "",
+                          assigned?.id === selectedMovePlayerId ? "is-selected-player" : "",
+                        ].filter(Boolean).join(" ")}
                         draggable={Boolean(assigned)}
                         key={slot.id}
-                        onClick={() => assigned && sendPlayerToBench(assigned.id)}
+                        onClick={() => {
+                          if (selectedMovePlayerId) {
+                            placeSelectedPlayer(slot.id);
+                            return;
+                          }
+                          if (assigned) selectPlayerForMove(assigned.id);
+                        }}
                         onDragOver={(event) => event.preventDefault()}
                         onDragStart={() => assigned && setDraggedPlayerId(assigned.id)}
                         onDrop={() => {
@@ -1285,10 +1343,14 @@ export function App() {
                       const onBench = benchIds.includes(player.id);
                       return (
                         <button
-                          className={inLineup ? "mini-player is-lineup" : onBench ? "mini-player is-bench" : "mini-player"}
+                          className={[
+                            inLineup ? "mini-player is-lineup" : onBench ? "mini-player is-bench" : "mini-player",
+                            selectedMovePlayerId === player.id ? "is-selected-player" : "",
+                          ].filter(Boolean).join(" ")}
                           draggable
                           key={player.id}
-                          onClick={() => quickPlacePlayer(player)}
+                          onClick={() => selectPlayerForMove(player.id)}
+                          onDoubleClick={() => quickPlacePlayer(player)}
                           onDragStart={() => setDraggedPlayerId(player.id)}
                         >
                           <span className="rating">{player.overall}</span>
@@ -1305,6 +1367,7 @@ export function App() {
 
               <section
                 className="bench-dock"
+                onClick={() => selectedMovePlayerId && sendPlayerToBench(selectedMovePlayerId)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => {
                   if (draggedPlayerId) sendPlayerToBench(draggedPlayerId);
@@ -1321,7 +1384,11 @@ export function App() {
                       className="bench-chip"
                       draggable
                       key={player.id}
-                      onClick={() => quickPlacePlayer(player)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        selectPlayerForMove(player.id);
+                      }}
+                      onDoubleClick={() => quickPlacePlayer(player)}
                       onDragStart={() => setDraggedPlayerId(player.id)}
                     >
                       <strong>{player.overall}</strong>

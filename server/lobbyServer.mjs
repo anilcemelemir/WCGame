@@ -162,6 +162,7 @@ function removeSocket(socket) {
 
   room.game?.plans.delete(player.id);
   room.game?.stepReadyIds.delete(player.id);
+  broadcast(room, "player:left", { playerId: player.id, nickname: player.nickname, room: publicRoom(room) });
   broadcastRoom(room);
   if (room.status === "started") {
     broadcastPlansUpdate(room);

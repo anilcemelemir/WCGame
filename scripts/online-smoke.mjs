@@ -60,7 +60,8 @@ try {
   const host = await makeClient("host");
   const guest = await makeClient("guest");
   const stranger = await makeClient("stranger");
-  clients.push(host, guest, stranger);
+  const leaver = await makeClient("leaver");
+  clients.push(host, guest, stranger, leaver);
 
   send(host, "room:create", { nickname: "QA-Host" });
   const created = await waitFor(host, "room:joined");
@@ -72,6 +73,16 @@ try {
   send(guest, "room:join", { nickname: "QA-Guest", code });
   await waitFor(guest, "room:joined");
   await waitFor(host, "room:update");
+
+  send(leaver, "room:join", { nickname: "QA-Leaver", code });
+  const leaverJoined = await waitFor(leaver, "room:joined");
+  await waitFor(host, "room:update");
+  send(leaver, "room:leave");
+  const left = await waitFor(host, "player:left");
+  if (left.payload.playerId !== leaverJoined.payload.selfId) throw new Error("Leave event reported the wrong player.");
+  if (left.payload.room.players.some((player) => player.id === leaverJoined.payload.selfId)) {
+    throw new Error("Leaving player is still visible in the lobby.");
+  }
 
   send(host, "player:select-team", { team: "France" });
   await waitFor(host, "room:update");
@@ -188,6 +199,7 @@ try {
         checks: [
           "bad join rejected",
           "join propagated",
+          "leave propagated",
           "team lock enforced",
           "ready requires team",
           "start synchronized",

@@ -12,6 +12,7 @@ export type LobbyClientEvent =
   | { type: "connected"; payload: { maxPlayers: number } }
   | { type: "room:joined"; payload: { selfId: string; room: LobbyRoom } }
   | { type: "room:update"; payload: { room: LobbyRoom } }
+  | { type: "player:left"; payload: { playerId: string; nickname: string; room: LobbyRoom } }
   | { type: "game:start"; payload: { room: LobbyRoom } }
   | { type: "game:plans-update"; payload: { room: LobbyRoom; readyCount: number; totalCount: number } }
   | { type: "game:plans-ready"; payload: { room: LobbyRoom; plans: OnlineTeamPlan[] } }
@@ -28,9 +29,24 @@ export type LobbyClientEvent =
   | { type: "error"; payload: { message: string } };
 
 function lobbySocketUrl() {
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const lobbyHost = import.meta.env.VITE_LOBBY_HOST ?? `${window.location.hostname}:8787`;
-  return lobbyHost.startsWith("ws://") || lobbyHost.startsWith("wss://") ? lobbyHost : `${protocol}://${lobbyHost}`;
+  const isLocalHost = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  const protocol = window.location.protocol === "https:" || !isLocalHost ? "wss" : "ws";
+  const fallbackHost = isLocalHost ? `${window.location.hostname}:8787` : "wcgame-lobby.onrender.com";
+  const lobbyHost = import.meta.env.VITE_LOBBY_HOST ?? fallbackHost;
+
+  if (lobbyHost.startsWith("ws://") || lobbyHost.startsWith("wss://")) {
+    const url = new URL(lobbyHost);
+    if (!isLocalHost) url.protocol = "wss:";
+    return url.toString();
+  }
+
+  if (lobbyHost.startsWith("http://") || lobbyHost.startsWith("https://")) {
+    const url = new URL(lobbyHost);
+    url.protocol = protocol === "wss" ? "wss:" : "ws:";
+    return url.toString();
+  }
+
+  return `${protocol}://${lobbyHost}`;
 }
 
 function lobbyHealthUrl(lobbyUrl: string) {
