@@ -319,6 +319,14 @@ function handleMessage(socket, rawMessage) {
 }
 
 const server = createServer((request, response) => {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  if (request.method === "OPTIONS") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
   if (request.url === "/healthz") {
     response.writeHead(200, { "Content-Type": "application/json" });
     response.end(JSON.stringify({ ok: true, rooms: rooms.size, maxPlayers: MAX_PLAYERS }));

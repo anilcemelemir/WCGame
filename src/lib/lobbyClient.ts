@@ -27,27 +27,82 @@ export type LobbyClientEvent =
   | { type: "game:complete"; payload: { room: LobbyRoom } }
   | { type: "error"; payload: { message: string } };
 
-export function createLobbySocket(onEvent: (event: LobbyClientEvent) => void) {
+function lobbySocketUrl() {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const lobbyHost = import.meta.env.VITE_LOBBY_HOST ?? `${window.location.hostname}:8787`;
-  const lobbyUrl = lobbyHost.startsWith("ws://") || lobbyHost.startsWith("wss://") ? lobbyHost : `${protocol}://${lobbyHost}`;
-  const socket = new WebSocket(lobbyUrl);
+  return lobbyHost.startsWith("ws://") || lobbyHost.startsWith("wss://") ? lobbyHost : `${protocol}://${lobbyHost}`;
+}
 
-  socket.addEventListener("message", (event) => {
-    onEvent(JSON.parse(event.data));
-  });
-  socket.addEventListener("error", () => {
-    onEvent({ type: "error", payload: { message: "Lobi sunucusuna bağlanılamadı." } });
-  });
+export function createLobbySocket(onEvent: (event: LobbyClientEvent) => void) {
+  const lobbyUrl = lobbySocketUrl();
+  const pendingMessages: string[] = [];
+  let socket: WebSocket | null = null;
+  let reconnectTimer: number | null = null;
+  let retryCount = 0;
+  let closedByClient = false;
+
+  const flushPending = () => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    while (pendingMessages.length > 0) {
+      const message = pendingMessages.shift();
+      if (message) socket.send(message);
+    }
+  };
+
+  const scheduleReconnect = () => {
+    if (closedByClient) return;
+    if (reconnectTimer) return;
+    if (retryCount >= 6) {
+      onEvent({
+        type: "error",
+        payload: { message: "Lobi sunucusuna bağlanılamadı. Sunucu uyanıyor olabilir; birkaç saniye sonra tekrar dene." },
+      });
+      return;
+    }
+
+    const delay = Math.min(900 + retryCount * 900, 5200);
+    retryCount += 1;
+    reconnectTimer = window.setTimeout(connect, delay);
+  };
+
+  const connect = () => {
+    if (closedByClient) return;
+    if (reconnectTimer) {
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    socket = new WebSocket(lobbyUrl);
+    socket.addEventListener("open", () => {
+      retryCount = 0;
+      flushPending();
+    });
+    socket.addEventListener("message", (event) => {
+      onEvent(JSON.parse(event.data));
+    });
+    socket.addEventListener("close", () => {
+      if (pendingMessages.length > 0) scheduleReconnect();
+    });
+    socket.addEventListener("error", () => {
+      scheduleReconnect();
+    });
+  };
+
+  connect();
 
   return {
     send(type: string, payload: Record<string, unknown> = {}) {
-      const message = JSON.stringify({ type, payload });
-      if (socket.readyState === WebSocket.OPEN) socket.send(message);
-      else socket.addEventListener("open", () => socket.send(message), { once: true });
+      pendingMessages.push(JSON.stringify({ type, payload }));
+      if (socket?.readyState === WebSocket.OPEN) {
+        flushPending();
+        return;
+      }
+      if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) connect();
     },
     close() {
-      socket.close();
+      closedByClient = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      socket?.close();
     },
   };
 }
