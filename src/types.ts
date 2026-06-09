@@ -76,6 +76,7 @@ export interface TeamPlan {
   tactic: Tactic;
   tacticalPlan: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
+  assignedRoles?: Record<string, PlayerPosition>;
 }
 
 export interface OnlineTeamPlan {
@@ -85,6 +86,7 @@ export interface OnlineTeamPlan {
   tactic: Tactic;
   tacticalPlan: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
+  assignedRoles?: Record<string, PlayerPosition>;
 }
 
 export interface SetPieceTakers {

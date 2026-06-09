@@ -1,5 +1,5 @@
 import { tacticDefinitions } from "../data/tactics";
-import { MatchEvent, MatchResult, Player, SetPieceTakers, Tactic, TacticalPlan } from "../types";
+import { MatchEvent, MatchResult, Player, PlayerPosition, SetPieceTakers, Tactic, TacticalPlan } from "../types";
 import { freeKickSkill, penaltySkill, resolveSetPieceTakers } from "./setPieces";
 
 export interface SimTeam {
@@ -8,6 +8,7 @@ export interface SimTeam {
   tactic: Tactic;
   tacticalPlan?: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
+  assignedRoles?: Record<string, PlayerPosition>;
 }
 
 interface TeamProfile {
@@ -22,6 +23,8 @@ interface TeamProfile {
   fitScore: number;
   fitMultiplier: number;
   tacticFit: number;
+  roleFit: number;
+  roleMultiplier: number;
   power: number;
   counts: Record<"GK" | "DEF" | "MID" | "FWD", number>;
 }
@@ -80,6 +83,41 @@ const HOME_ADVANTAGE_BONUS = 0.08;
 
 function planFor(team: SimTeam): TacticalPlan {
   return team.tacticalPlan ?? tacticDefinitions[team.tactic].plan;
+}
+
+function deployedPosition(team: SimTeam, player: Player): PlayerPosition {
+  return team.assignedRoles?.[player.id] ?? player.position;
+}
+
+function effectiveLineup(team: SimTeam): Player[] {
+  return team.lineup.map((player) => {
+    const position = deployedPosition(team, player);
+    return position === player.position ? player : { ...player, position };
+  });
+}
+
+function roleCompatibility(natural: PlayerPosition, deployed: PlayerPosition): number {
+  if (natural === deployed) return 1;
+  if (natural === "GK" && deployed !== "GK") return 0.35;
+  if (natural !== "GK" && deployed === "GK") return 0.25;
+  if ((natural === "DEF" && deployed === "MID") || (natural === "MID" && deployed === "DEF")) return 0.82;
+  if ((natural === "MID" && deployed === "FWD") || (natural === "FWD" && deployed === "MID")) return 0.78;
+  return 0.58;
+}
+
+function roleFitScore(team: SimTeam): number {
+  if (!team.lineup.length || !team.assignedRoles) return 100;
+  const score = team.lineup.reduce((sum, player) => sum + roleCompatibility(player.position, deployedPosition(team, player)), 0);
+  return (score / team.lineup.length) * 100;
+}
+
+function roleFitMultiplier(score: number): number {
+  if (score >= 96) return 1;
+  if (score >= 86) return 0.96;
+  if (score >= 72) return 0.9;
+  if (score >= 58) return 0.8;
+  if (score >= 42) return 0.68;
+  return 0.52;
 }
 
 function shapeFromPlan(plan: TacticalPlan) {
@@ -285,16 +323,21 @@ function tacticFit(players: Player[], tactic: Tactic, plan: TacticalPlan, profil
 function buildProfile(team: SimTeam): TeamProfile {
   const plan = planFor(team);
   const archetype = tacticArchetype(team);
-  const counts = countPositions(team.lineup);
-  const attack = weighted(team.lineup, "attack");
-  const defense = weighted(team.lineup, "defense");
-  const control = weighted(team.lineup, "control");
-  const transition = weighted(team.lineup, "transition");
-  const goalkeeping = weighted(team.lineup, "goalkeeping");
-  const overall = average(team.lineup);
-  const fitScore = teamFitScore(team.lineup, archetype);
-  const strengths = teamStrengths(team.lineup);
-  const fit = tacticFit(team.lineup, team.tactic, plan, { attack, defense, control, transition, goalkeeping, counts });
+  const lineup = effectiveLineup(team);
+  const roleFit = roleFitScore(team);
+  const roleMultiplier = roleFitMultiplier(roleFit);
+  const counts = countPositions(lineup);
+  const attack = weighted(lineup, "attack") * roleMultiplier;
+  const defense = weighted(lineup, "defense") * roleMultiplier;
+  const control = weighted(lineup, "control") * roleMultiplier;
+  const transition = weighted(lineup, "transition") * roleMultiplier;
+  const goalkeeping = weighted(lineup, "goalkeeping") * roleMultiplier;
+  const overall = average(lineup) * roleMultiplier;
+  const fitScore = teamFitScore(lineup, archetype) * roleMultiplier;
+  const strengths = teamStrengths(lineup);
+  const attackStrength = strengths.attackStrength * roleMultiplier;
+  const defenseStrength = strengths.defenseStrength * roleMultiplier;
+  const fit = clamp(tacticFit(lineup, team.tactic, plan, { attack, defense, control, transition, goalkeeping, counts }) * roleMultiplier, 0.45, 1.15);
 
   return {
     overall,
@@ -303,11 +346,13 @@ function buildProfile(team: SimTeam): TeamProfile {
     control,
     transition,
     goalkeeping,
-    attackStrength: strengths.attackStrength,
-    defenseStrength: strengths.defenseStrength,
+    attackStrength,
+    defenseStrength,
     fitScore,
     fitMultiplier: fit,
     tacticFit: fit,
+    roleFit,
+    roleMultiplier,
     power:
       overall * 0.26 +
       attack * 0.14 +
@@ -315,8 +360,8 @@ function buildProfile(team: SimTeam): TeamProfile {
       control * 0.1 +
       transition * 0.08 +
       goalkeeping * 0.08 +
-      strengths.attackStrength * 2.5 +
-      strengths.defenseStrength * 2.5,
+      attackStrength * 2.5 +
+      defenseStrength * 2.5,
     counts,
   };
 }
@@ -661,7 +706,7 @@ function createNarrative(
     {
       minute: 1,
       type: "analysis",
-      text: `Maç önü tablo: güç dengesi ${home.country} ${Math.round(homeProfile.power)} - ${away.country} ${Math.round(awayProfile.power)}. Taktik uyumu ${Math.round(homeProfile.tacticFit * 100)} / ${Math.round(awayProfile.tacticFit * 100)}; bu fark özellikle orta saha yerleşiminde hissedilebilir.`,
+      text: `Maç önü tablo: güç dengesi ${home.country} ${Math.round(homeProfile.power)} - ${away.country} ${Math.round(awayProfile.power)}. Taktik uyumu ${Math.round(homeProfile.tacticFit * 100)} / ${Math.round(awayProfile.tacticFit * 100)}, rol uyumu ${Math.round(homeProfile.roleFit)} / ${Math.round(awayProfile.roleFit)}; bu fark özellikle saha yerleşiminde hissedilebilir.`,
     },
   ];
   const goals: MatchResult["goals"] = [];

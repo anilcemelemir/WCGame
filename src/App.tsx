@@ -268,6 +268,7 @@ export function App() {
   );
   const currentTournamentStep = tournamentSteps[revealedStepCount];
   const revealedSteps = tournamentSteps.slice(0, revealedStepCount);
+  const revealedStepsForDisplay = useMemo(() => [...revealedSteps].reverse(), [revealedSteps]);
   const allStepsRevealed = tournamentSteps.length > 0 && revealedStepCount >= tournamentSteps.length;
   const canStartSquad = tournamentTeams.length === 48 && tournamentTeams.includes(country);
   const canUseOnline = nickname.trim().length >= 2;
@@ -469,6 +470,7 @@ export function App() {
               tactic: plan.tactic,
               tacticalPlan: plan.tacticalPlan,
               setPieceTakers: plan.setPieceTakers,
+              assignedRoles: plan.assignedRoles,
             })),
             latestPlayersRef.current,
             latestGroupsRef.current,
@@ -863,6 +865,7 @@ export function App() {
       tactic,
       tacticalPlan,
       setPieceTakers: currentSetPieceTakers(),
+      assignedRoles: currentAssignedRoles(),
     };
 
     setOnlinePlanSubmitted(true);
@@ -883,13 +886,28 @@ export function App() {
     };
   }
 
+  function currentAssignedRoles() {
+    return Object.fromEntries(
+      selectedFormation.slots
+        .map((slot) => {
+          const playerId = lineupAssignments[slot.id];
+          return playerId ? [playerId, slot.position] : null;
+        })
+        .filter((item): item is [string, Player["position"]] => Boolean(item)),
+    );
+  }
+
   function runTournament() {
     if (playMode === "online") {
       submitOnlinePlan();
       return;
     }
 
-    const nextResult = simulateTournament({ country, lineup: startingEleven, tactic, tacticalPlan, setPieceTakers: currentSetPieceTakers() }, players, tournamentGroups);
+    const nextResult = simulateTournament(
+      { country, lineup: startingEleven, tactic, tacticalPlan, setPieceTakers: currentSetPieceTakers(), assignedRoles: currentAssignedRoles() },
+      players,
+      tournamentGroups,
+    );
     const steps = createTournamentSteps(nextResult);
 
     setResult(nextResult);
@@ -1635,11 +1653,13 @@ export function App() {
 
             {revealedSteps.length > 0 && (
               <section className="timeline-list">
-                {revealedSteps.map((step, index) => (
+                {revealedStepsForDisplay.map((step) => {
+                  const stepNumber = tournamentSteps.findIndex((item) => item.id === step.id) + 1;
+                  return (
                   <article className="panel step-results" key={step.id}>
                     <div className="dock-header">
                       <h3>{step.title}</h3>
-                      <span>{index + 1}/{tournamentSteps.length}</span>
+                      <span>{stepNumber}/{tournamentSteps.length}</span>
                     </div>
                     <div className="match-list-grid">
                       {step.matches.map((match) => (
@@ -1670,7 +1690,8 @@ export function App() {
                       ))}
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </section>
             )}
 

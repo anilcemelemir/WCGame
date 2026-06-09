@@ -1,6 +1,6 @@
 import { TournamentGroup } from "../data/worldCup2026";
 import { thirdPlaceAllocationByGroups } from "../data/thirdPlaceAllocations";
-import { GroupResult, KnockoutRound, MatchResult, Player, Standing, Tactic, TournamentResult } from "../types";
+import { GroupResult, KnockoutRound, MatchResult, Player, PlayerPosition, Standing, Tactic, TournamentResult } from "../types";
 import { getCountryPlayerPool } from "./dataset";
 import { SimTeam, simulateMatch } from "./matchEngine";
 import { defaultSetPieceTakers } from "./setPieces";
@@ -239,8 +239,22 @@ function loserOf(match: MatchResult, teamByCountry: Map<string, SimTeam>): SimTe
 
 export function simulateTournament(
   userTeam:
-    | { country: string; lineup: Player[]; tactic: Tactic; tacticalPlan?: import("../types").TacticalPlan; setPieceTakers?: import("../types").SetPieceTakers }
-    | Array<{ country: string; lineup: Player[]; tactic: Tactic; tacticalPlan?: import("../types").TacticalPlan; setPieceTakers?: import("../types").SetPieceTakers }>,
+    | {
+        country: string;
+        lineup: Player[];
+        tactic: Tactic;
+        tacticalPlan?: import("../types").TacticalPlan;
+        setPieceTakers?: import("../types").SetPieceTakers;
+        assignedRoles?: Record<string, PlayerPosition>;
+      }
+    | Array<{
+        country: string;
+        lineup: Player[];
+        tactic: Tactic;
+        tacticalPlan?: import("../types").TacticalPlan;
+        setPieceTakers?: import("../types").SetPieceTakers;
+        assignedRoles?: Record<string, PlayerPosition>;
+      }>,
   players: Player[],
   tournamentGroups: TournamentGroup[],
 ): TournamentResult {
