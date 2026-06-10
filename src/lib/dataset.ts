@@ -60,6 +60,18 @@ function normalizeRole(value: string): PlayerRole | null {
   return role in positionMap ? (role as PlayerRole) : null;
 }
 
+function cleanName(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value
+    .replace(/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function displayName(row: Fc26RawPlayer): string | undefined {
+  return cleanName(row.short_name ?? row.Name ?? row.name ?? row.long_name);
+}
+
 const tournamentSquadShape: PlayerPosition[] = [
   "GK",
   "GK",
@@ -131,7 +143,8 @@ function createSupplementalPlayer(country: string, index: number, position: Play
 export function normalizeFc26Players(rows: Fc26RawPlayer[]): Player[] {
   return rows
     .map((row, index): Player | null => {
-      const name = row.long_name ?? row.Name ?? row.name ?? row.short_name;
+      const name = displayName(row);
+      const fullName = cleanName(row.long_name);
       const nationality = row.nationality_name ?? row.Nationality ?? row.nationality;
       const club = row.club_name ?? row.Club ?? row.club ?? "Free Agent";
       const rawOverall = row.Overall ?? row.overall;
@@ -158,6 +171,7 @@ export function normalizeFc26Players(rows: Fc26RawPlayer[]): Player[] {
       return {
         id: String(row.id ?? row.player_id ?? `${nationality}-${name}-${index}`),
         name,
+        fullName,
         nationality,
         club,
         overall,

@@ -54,6 +54,15 @@ function averageOverall(players: Player[]) {
   return Math.round(players.reduce((sum, player) => sum + player.overall, 0) / players.length);
 }
 
+function pitchName(player: Player | undefined) {
+  if (!player) return "Boş";
+  const parts = player.name.split(" ").filter(Boolean);
+  if (parts.length <= 1) return player.name;
+  const last = parts[parts.length - 1] ?? player.name;
+  if (/^(jr\.?|ii|iii|iv)$/i.test(last)) return parts[parts.length - 2] ?? parts[0];
+  return last;
+}
+
 function fallbackRole(player: Player): PlayerRole {
   if (player.position === "GK") return "GK";
   if (player.position === "DEF") return "CB";
@@ -1435,7 +1444,7 @@ export function App() {
                         title={`${slot.label} (${roleForSlot(slot)}) slotu${assigned ? ` · rol uyumu ${Math.round(compatibility * 100)}` : ""}`}
                       >
                         <span>{slot.label}</span>
-                        <strong>{assigned?.name.split(" ").slice(-1)[0] ?? "Boş"}</strong>
+                        <strong>{pitchName(assigned)}</strong>
                         {assigned && <em>{assigned.overall}</em>}
                       </button>
                     );

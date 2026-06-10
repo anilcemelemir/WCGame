@@ -67,6 +67,7 @@ export interface LobbyRoom {
 export interface Player {
   id: string;
   name: string;
+  fullName?: string;
   nationality: string;
   club: string;
   overall: number;
