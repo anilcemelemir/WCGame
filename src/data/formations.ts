@@ -1,9 +1,10 @@
-import { Formation, Player, PlayerPosition } from "../types";
+import { Formation, Player, PlayerPosition, PlayerRole } from "../types";
 
 export interface FormationSlot {
   id: string;
   label: string;
   position: PlayerPosition;
+  role?: PlayerRole;
   x: number;
   y: number;
 }
@@ -14,7 +15,11 @@ export interface FormationDefinition {
   slots: FormationSlot[];
 }
 
-const gk = { id: "gk", label: "KL", position: "GK" as const, x: 50, y: 90 };
+function slot(id: string, label: string, position: PlayerPosition, role: PlayerRole, x: number, y: number): FormationSlot {
+  return { id, label, position, role, x, y };
+}
+
+const gk = slot("gk", "KL", "GK", "GK", 50, 90);
 
 export const formationDefinitions: Record<Formation, FormationDefinition> = {
   "4-3-3": {
@@ -224,6 +229,26 @@ export const formationDefinitions: Record<Formation, FormationDefinition> = {
 };
 
 export const formationList = Object.values(formationDefinitions);
+
+export function roleForSlot(slot: FormationSlot): PlayerRole {
+  if (slot.role) return slot.role;
+  const id = slot.id.toLowerCase();
+  if (id === "gk") return "GK";
+  if (id.includes("lwb")) return "LWB";
+  if (id.includes("rwb")) return "RWB";
+  if (id === "lb") return "LB";
+  if (id === "rb") return "RB";
+  if (id.includes("cb")) return "CB";
+  if (id.includes("dm")) return "CDM";
+  if (id.includes("cam") || id.includes("am")) return "CAM";
+  if (id === "lm") return "LM";
+  if (id === "rm") return "RM";
+  if (id.includes("cm")) return "CM";
+  if (id === "lw") return "LW";
+  if (id === "rw") return "RW";
+  if (id.includes("st")) return "ST";
+  return slot.position === "DEF" ? "CB" : slot.position === "MID" ? "CM" : slot.position === "FWD" ? "ST" : "GK";
+}
 
 export function autoAssignLineup(players: Player[], formation: Formation): Record<string, string> {
   const assignments: Record<string, string> = {};

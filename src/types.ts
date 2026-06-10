@@ -1,5 +1,22 @@
 export type PlayerPosition = "GK" | "DEF" | "MID" | "FWD";
 
+export type PlayerRole =
+  | "GK"
+  | "CB"
+  | "LB"
+  | "RB"
+  | "LWB"
+  | "RWB"
+  | "CDM"
+  | "CM"
+  | "CAM"
+  | "LM"
+  | "RM"
+  | "LW"
+  | "RW"
+  | "ST"
+  | "CF";
+
 export type Tactic =
   | "balanced"
   | "attacking"
@@ -54,6 +71,8 @@ export interface Player {
   club: string;
   overall: number;
   position: PlayerPosition;
+  primaryRole?: PlayerRole;
+  roles?: PlayerRole[];
   age: number;
   pace?: number;
   shooting?: number;
@@ -77,6 +96,7 @@ export interface TeamPlan {
   tacticalPlan: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
   assignedRoles?: Record<string, PlayerPosition>;
+  assignedRoleDetails?: Record<string, PlayerRole>;
 }
 
 export interface OnlineTeamPlan {
@@ -87,6 +107,7 @@ export interface OnlineTeamPlan {
   tacticalPlan: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
   assignedRoles?: Record<string, PlayerPosition>;
+  assignedRoleDetails?: Record<string, PlayerRole>;
 }
 
 export interface SetPieceTakers {

@@ -1,6 +1,6 @@
 import { TournamentGroup } from "../data/worldCup2026";
 import { thirdPlaceAllocationByGroups } from "../data/thirdPlaceAllocations";
-import { GroupResult, KnockoutRound, MatchResult, Player, PlayerPosition, Standing, Tactic, TournamentResult } from "../types";
+import { GroupResult, KnockoutRound, MatchResult, Player, PlayerPosition, PlayerRole, Standing, Tactic, TournamentResult } from "../types";
 import { getCountryPlayerPool } from "./dataset";
 import { SimTeam, simulateMatch } from "./matchEngine";
 import { defaultSetPieceTakers } from "./setPieces";
@@ -246,6 +246,7 @@ export function simulateTournament(
         tacticalPlan?: import("../types").TacticalPlan;
         setPieceTakers?: import("../types").SetPieceTakers;
         assignedRoles?: Record<string, PlayerPosition>;
+        assignedRoleDetails?: Record<string, PlayerRole>;
       }
     | Array<{
         country: string;
@@ -254,6 +255,7 @@ export function simulateTournament(
         tacticalPlan?: import("../types").TacticalPlan;
         setPieceTakers?: import("../types").SetPieceTakers;
         assignedRoles?: Record<string, PlayerPosition>;
+        assignedRoleDetails?: Record<string, PlayerRole>;
       }>,
   players: Player[],
   tournamentGroups: TournamentGroup[],

@@ -641,6 +641,12 @@ button {
   box-shadow: 0 0 0 3px rgba(16, 35, 25, 0.16);
 }
 
+.pitch-slot.is-role-warning {
+  background: #fff0e6;
+  border-color: #d95f24;
+  box-shadow: 0 0 0 3px rgba(217, 95, 36, 0.2);
+}
+
 .selection-dock,
 .bench-dock {
   background: #fbfcfa;

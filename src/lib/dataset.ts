@@ -1,4 +1,4 @@
-import { Player, PlayerPosition } from "../types";
+import { Player, PlayerPosition, PlayerRole } from "../types";
 import { samplePlayers } from "../data/samplePlayers";
 
 export interface Fc26RawPlayer {
@@ -37,7 +37,7 @@ export interface Fc26RawPlayer {
   mentality_penalties?: string | number;
 }
 
-const positionMap: Record<string, PlayerPosition> = {
+const positionMap: Record<PlayerRole, PlayerPosition> = {
   GK: "GK",
   CB: "DEF",
   LB: "DEF",
@@ -54,6 +54,11 @@ const positionMap: Record<string, PlayerPosition> = {
   ST: "FWD",
   CF: "FWD",
 };
+
+function normalizeRole(value: string): PlayerRole | null {
+  const role = value.trim().toUpperCase();
+  return role in positionMap ? (role as PlayerRole) : null;
+}
 
 const tournamentSquadShape: PlayerPosition[] = [
   "GK",
@@ -105,6 +110,7 @@ function positionForSupplement(existingPlayers: Player[], index: number): Player
 
 function createSupplementalPlayer(country: string, index: number, position: PlayerPosition, baseRating: number): Player {
   const safeCountry = country.toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "team";
+  const primaryRole: PlayerRole = position === "GK" ? "GK" : position === "DEF" ? "CB" : position === "MID" ? "CM" : "ST";
 
   return {
     id: `supplemental-${safeCountry}-${index + 1}`,
@@ -113,6 +119,8 @@ function createSupplementalPlayer(country: string, index: number, position: Play
     club: "Milli Havuz",
     overall: Math.max(48, Math.min(72, baseRating - Math.floor(index / 3))),
     position,
+    primaryRole,
+    roles: [primaryRole],
     age: 21 + (index % 13),
     curve: Math.max(42, baseRating - 4),
     freeKickAccuracy: Math.max(40, baseRating - 6),
@@ -127,11 +135,13 @@ export function normalizeFc26Players(rows: Fc26RawPlayer[]): Player[] {
       const nationality = row.nationality_name ?? row.Nationality ?? row.nationality;
       const club = row.club_name ?? row.Club ?? row.club ?? "Free Agent";
       const rawOverall = row.Overall ?? row.overall;
-      const rawPosition = (row.player_positions ?? row.Position ?? row.position ?? "CM")
-        .split(",")[0]
-        .trim()
-        .toUpperCase();
-      const position = positionMap[rawPosition] ?? "MID";
+      const rawRoles = row.player_positions ?? row.Position ?? row.position ?? "CM";
+      const roles = rawRoles
+        .split(",")
+        .map(normalizeRole)
+        .filter((role): role is PlayerRole => Boolean(role));
+      const primaryRole = roles[0] ?? "CM";
+      const position = positionMap[primaryRole] ?? "MID";
       const overall = Number(rawOverall);
       const goalkeepingValues = [
         row.goalkeeping_diving,
@@ -152,6 +162,8 @@ export function normalizeFc26Players(rows: Fc26RawPlayer[]): Player[] {
         club,
         overall,
         position,
+        primaryRole,
+        roles: roles.length ? roles : [primaryRole],
         age: Number(row.Age ?? row.age ?? 24),
         pace: Number(row.pace) || undefined,
         shooting: Number(row.shooting) || undefined,

@@ -1,5 +1,5 @@
 import { tacticDefinitions } from "../data/tactics";
-import { MatchEvent, MatchResult, Player, PlayerPosition, SetPieceTakers, Tactic, TacticalPlan } from "../types";
+import { MatchEvent, MatchResult, Player, PlayerPosition, PlayerRole, SetPieceTakers, Tactic, TacticalPlan } from "../types";
 import { freeKickSkill, penaltySkill, resolveSetPieceTakers } from "./setPieces";
 
 export interface SimTeam {
@@ -9,6 +9,7 @@ export interface SimTeam {
   tacticalPlan?: TacticalPlan;
   setPieceTakers?: SetPieceTakers;
   assignedRoles?: Record<string, PlayerPosition>;
+  assignedRoleDetails?: Record<string, PlayerRole>;
 }
 
 interface TeamProfile {
@@ -89,35 +90,96 @@ function deployedPosition(team: SimTeam, player: Player): PlayerPosition {
   return team.assignedRoles?.[player.id] ?? player.position;
 }
 
+function rolePosition(role: PlayerRole): PlayerPosition {
+  if (role === "GK") return "GK";
+  if (role === "CB" || role === "LB" || role === "RB" || role === "LWB" || role === "RWB") return "DEF";
+  if (role === "CDM" || role === "CM" || role === "CAM" || role === "LM" || role === "RM") return "MID";
+  return "FWD";
+}
+
+function deployedRole(team: SimTeam, player: Player): PlayerRole {
+  const fallbackPosition = deployedPosition(team, player);
+  const fallbackRole: PlayerRole = fallbackPosition === "GK" ? "GK" : fallbackPosition === "DEF" ? "CB" : fallbackPosition === "MID" ? "CM" : "ST";
+  return team.assignedRoleDetails?.[player.id] ?? player.primaryRole ?? fallbackRole;
+}
+
 function effectiveLineup(team: SimTeam): Player[] {
   return team.lineup.map((player) => {
-    const position = deployedPosition(team, player);
+    const position = rolePosition(deployedRole(team, player));
     return position === player.position ? player : { ...player, position };
   });
 }
 
-function roleCompatibility(natural: PlayerPosition, deployed: PlayerPosition): number {
+function pairRoleCompatibility(natural: PlayerRole, deployed: PlayerRole): number {
   if (natural === deployed) return 1;
-  if (natural === "GK" && deployed !== "GK") return 0.35;
-  if (natural !== "GK" && deployed === "GK") return 0.25;
-  if ((natural === "DEF" && deployed === "MID") || (natural === "MID" && deployed === "DEF")) return 0.82;
-  if ((natural === "MID" && deployed === "FWD") || (natural === "FWD" && deployed === "MID")) return 0.78;
-  return 0.58;
+  if (natural === "GK" || deployed === "GK") return 0.18;
+
+  const naturalPosition = rolePosition(natural);
+  const deployedPositionValue = rolePosition(deployed);
+  const fullbacks: PlayerRole[] = ["LB", "RB", "LWB", "RWB"];
+  const wideMids: PlayerRole[] = ["LM", "RM"];
+  const wingers: PlayerRole[] = ["LW", "RW"];
+
+  if (fullbacks.includes(natural) && fullbacks.includes(deployed)) return 0.82;
+  if (natural === "CB" && fullbacks.includes(deployed)) return 0.62;
+  if (fullbacks.includes(natural) && deployed === "CB") return 0.66;
+  if ((natural === "CDM" && deployed === "CB") || (natural === "CB" && deployed === "CDM")) return 0.7;
+  if ((natural === "CDM" && deployed === "CM") || (natural === "CM" && deployed === "CDM")) return 0.84;
+  if ((natural === "CM" && deployed === "CAM") || (natural === "CAM" && deployed === "CM")) return 0.82;
+  if (wideMids.includes(natural) && wideMids.includes(deployed)) return 0.76;
+  if ((wideMids.includes(natural) && wingers.includes(deployed)) || (wingers.includes(natural) && wideMids.includes(deployed))) return 0.82;
+  if (wingers.includes(natural) && wingers.includes(deployed)) return 0.78;
+  if ((natural === "ST" && deployed === "CF") || (natural === "CF" && deployed === "ST")) return 0.94;
+  if ((natural === "CAM" && deployed === "CF") || (natural === "CF" && deployed === "CAM")) return 0.74;
+  if ((natural === "CAM" && deployed === "ST") || (natural === "ST" && deployed === "CAM")) return 0.62;
+
+  if (naturalPosition === deployedPositionValue) return 0.58;
+  if (
+    (naturalPosition === "DEF" && deployedPositionValue === "MID") ||
+    (naturalPosition === "MID" && deployedPositionValue === "DEF")
+  ) {
+    return 0.54;
+  }
+  if (
+    (naturalPosition === "MID" && deployedPositionValue === "FWD") ||
+    (naturalPosition === "FWD" && deployedPositionValue === "MID")
+  ) {
+    return 0.5;
+  }
+  return 0.28;
+}
+
+function roleCompatibility(player: Player, role: PlayerRole): number {
+  const fallbackRole: PlayerRole = player.position === "GK" ? "GK" : player.position === "DEF" ? "CB" : player.position === "MID" ? "CM" : "ST";
+  const naturalRoles = player.roles?.length ? player.roles : [player.primaryRole ?? fallbackRole];
+  return Math.max(...naturalRoles.map((naturalRole) => pairRoleCompatibility(naturalRole, role)));
+}
+
+function roleImportance(role: PlayerRole): number {
+  if (role === "GK") return 2.4;
+  if (role === "CB" || role === "ST") return 1.55;
+  if (role === "CDM" || role === "CM" || role === "CAM") return 1.25;
+  return 1.1;
 }
 
 function roleFitScore(team: SimTeam): number {
-  if (!team.lineup.length || !team.assignedRoles) return 100;
-  const score = team.lineup.reduce((sum, player) => sum + roleCompatibility(player.position, deployedPosition(team, player)), 0);
-  return (score / team.lineup.length) * 100;
+  if (!team.lineup.length || (!team.assignedRoles && !team.assignedRoleDetails)) return 100;
+  const values = team.lineup.map((player) => {
+    const role = deployedRole(team, player);
+    return { compatibility: roleCompatibility(player, role), weight: roleImportance(role) };
+  });
+  const totalWeight = values.reduce((sum, item) => sum + item.weight, 0);
+  return (values.reduce((sum, item) => sum + item.compatibility * item.weight, 0) / totalWeight) * 100;
 }
 
 function roleFitMultiplier(score: number): number {
-  if (score >= 96) return 1;
-  if (score >= 86) return 0.96;
-  if (score >= 72) return 0.9;
-  if (score >= 58) return 0.8;
-  if (score >= 42) return 0.68;
-  return 0.52;
+  if (score >= 98) return 1.03;
+  if (score >= 94) return 1;
+  if (score >= 88) return 0.92;
+  if (score >= 80) return 0.82;
+  if (score >= 70) return 0.72;
+  if (score >= 58) return 0.6;
+  return 0.45;
 }
 
 function shapeFromPlan(plan: TacticalPlan) {
@@ -392,8 +454,10 @@ function expectedGoals(team: SimTeam, opponent: SimTeam, teamProfile: TeamProfil
   );
   const overallGap = opponentProfile.overall - teamProfile.overall;
   const underdogBrake = overallGap >= 18 ? 0.72 : overallGap >= 14 ? 0.8 : overallGap >= 10 ? 0.88 : 1;
+  const powerGap = opponentProfile.power - teamProfile.power;
+  const mismatchBrake = powerGap >= 65 ? 0.58 : powerGap >= 48 ? 0.68 : powerGap >= 32 ? 0.8 : 1;
 
-  return clamp(BASE_XG_RATE * chanceRate * tempoAdjustment * qualityAdjustment * setPieceBoost * underdogBrake, 0.25, 3.5);
+  return clamp(BASE_XG_RATE * chanceRate * tempoAdjustment * qualityAdjustment * setPieceBoost * underdogBrake * mismatchBrake, 0.2, 3.5);
 }
 
 function poisson(lambda: number): number {
@@ -416,7 +480,7 @@ function applyGoalVariance(goals: number, xg: number): number {
 }
 
 function upsetWinChance(overallGap: number): number {
-  return clamp(0.26 - (overallGap - 10) * 0.025, 0.05, 0.26);
+  return clamp(0.16 - (overallGap - 10) * 0.018, 0.025, 0.16);
 }
 
 function pickPlayer(team: SimTeam, mode: "scorer" | "creator" | "defender"): Player {

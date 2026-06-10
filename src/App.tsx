@@ -14,7 +14,7 @@ import {
 import { AdSlot } from "./components/AdSlot";
 import { MatchEventAnimation, MatchAnimationType } from "./components/MatchEventAnimation";
 import { loadFc26Players } from "./data/fc26Players";
-import { autoAssignLineup, formationDefinitions, formationList, playersFromAssignments } from "./data/formations";
+import { autoAssignLineup, formationDefinitions, formationList, playersFromAssignments, roleForSlot } from "./data/formations";
 import { samplePlayers } from "./data/samplePlayers";
 import { tacticDefinitions, tacticList } from "./data/tactics";
 import { createCustomGroups, officialWorldCup2026Groups, officialWorldCup2026Teams } from "./data/worldCup2026";
@@ -31,6 +31,7 @@ import {
   MatchResult,
   OnlineTeamPlan,
   Player,
+  PlayerRole,
   PlayMode,
   SetPieceTakers,
   Stage,
@@ -51,6 +52,57 @@ interface TournamentStep {
 function averageOverall(players: Player[]) {
   if (!players.length) return 0;
   return Math.round(players.reduce((sum, player) => sum + player.overall, 0) / players.length);
+}
+
+function fallbackRole(player: Player): PlayerRole {
+  if (player.position === "GK") return "GK";
+  if (player.position === "DEF") return "CB";
+  if (player.position === "MID") return "CM";
+  return "ST";
+}
+
+function rolePosition(role: PlayerRole) {
+  if (role === "GK") return "GK";
+  if (role === "CB" || role === "LB" || role === "RB" || role === "LWB" || role === "RWB") return "DEF";
+  if (role === "CDM" || role === "CM" || role === "CAM" || role === "LM" || role === "RM") return "MID";
+  return "FWD";
+}
+
+function pairRoleCompatibility(natural: PlayerRole, deployed: PlayerRole): number {
+  if (natural === deployed) return 1;
+  if (natural === "GK" || deployed === "GK") return 0.18;
+  const fullbacks: PlayerRole[] = ["LB", "RB", "LWB", "RWB"];
+  const wideMids: PlayerRole[] = ["LM", "RM"];
+  const wingers: PlayerRole[] = ["LW", "RW"];
+  if (fullbacks.includes(natural) && fullbacks.includes(deployed)) return 0.82;
+  if (natural === "CB" && fullbacks.includes(deployed)) return 0.62;
+  if (fullbacks.includes(natural) && deployed === "CB") return 0.66;
+  if ((natural === "CDM" && deployed === "CB") || (natural === "CB" && deployed === "CDM")) return 0.7;
+  if ((natural === "CDM" && deployed === "CM") || (natural === "CM" && deployed === "CDM")) return 0.84;
+  if ((natural === "CM" && deployed === "CAM") || (natural === "CAM" && deployed === "CM")) return 0.82;
+  if (wideMids.includes(natural) && wideMids.includes(deployed)) return 0.76;
+  if ((wideMids.includes(natural) && wingers.includes(deployed)) || (wingers.includes(natural) && wideMids.includes(deployed))) return 0.82;
+  if (wingers.includes(natural) && wingers.includes(deployed)) return 0.78;
+  if ((natural === "ST" && deployed === "CF") || (natural === "CF" && deployed === "ST")) return 0.94;
+  if ((natural === "CAM" && deployed === "CF") || (natural === "CF" && deployed === "CAM")) return 0.74;
+  if ((natural === "CAM" && deployed === "ST") || (natural === "ST" && deployed === "CAM")) return 0.62;
+  if (rolePosition(natural) === rolePosition(deployed)) return 0.58;
+  return 0.32;
+}
+
+function playerRoleCompatibility(player: Player, deployed: PlayerRole) {
+  const naturalRoles = player.roles?.length ? player.roles : [player.primaryRole ?? fallbackRole(player)];
+  return Math.max(...naturalRoles.map((role) => pairRoleCompatibility(role, deployed)));
+}
+
+function roleFitMultiplier(score: number): number {
+  if (score >= 98) return 1.03;
+  if (score >= 94) return 1;
+  if (score >= 88) return 0.92;
+  if (score >= 80) return 0.82;
+  if (score >= 70) return 0.72;
+  if (score >= 58) return 0.6;
+  return 0.45;
 }
 
 function planValueLabel(value: number) {
@@ -280,6 +332,17 @@ export function App() {
   const selectedPenaltyTaker = lineupPlayers.find((player) => player.id === setPieceTakers.penaltyTakerId) ?? bestPenaltyTaker(lineupPlayers);
   const selectedFreeKickTaker = lineupPlayers.find((player) => player.id === setPieceTakers.freeKickTakerId) ?? bestFreeKickTaker(lineupPlayers);
   const selectedMovePlayer = squad.find((player) => player.id === selectedMovePlayerId);
+  const lineupRoleFit = useMemo(() => {
+    const playerById = new Map(squad.map((player) => [player.id, player]));
+    const values = selectedFormation.slots.flatMap((slot) => {
+      const player = playerById.get(lineupAssignments[slot.id]);
+      if (!player) return [];
+      return [playerRoleCompatibility(player, roleForSlot(slot))];
+    });
+    if (!values.length) return 100;
+    return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100);
+  }, [lineupAssignments, selectedFormation.slots, squad]);
+  const effectiveLineupOverall = Math.round(averageOverall(lineupPlayers) * roleFitMultiplier(lineupRoleFit));
 
   useEffect(() => {
     return () => lobbySocket?.close();
@@ -471,6 +534,7 @@ export function App() {
               tacticalPlan: plan.tacticalPlan,
               setPieceTakers: plan.setPieceTakers,
               assignedRoles: plan.assignedRoles,
+              assignedRoleDetails: plan.assignedRoleDetails,
             })),
             latestPlayersRef.current,
             latestGroupsRef.current,
@@ -866,6 +930,7 @@ export function App() {
       tacticalPlan,
       setPieceTakers: currentSetPieceTakers(),
       assignedRoles: currentAssignedRoles(),
+      assignedRoleDetails: currentAssignedRoleDetails(),
     };
 
     setOnlinePlanSubmitted(true);
@@ -897,6 +962,17 @@ export function App() {
     );
   }
 
+  function currentAssignedRoleDetails() {
+    return Object.fromEntries(
+      selectedFormation.slots
+        .map((slot) => {
+          const playerId = lineupAssignments[slot.id];
+          return playerId ? [playerId, roleForSlot(slot)] : null;
+        })
+        .filter((item): item is [string, PlayerRole] => Boolean(item)),
+    );
+  }
+
   function runTournament() {
     if (playMode === "online") {
       submitOnlinePlan();
@@ -904,7 +980,15 @@ export function App() {
     }
 
     const nextResult = simulateTournament(
-      { country, lineup: startingEleven, tactic, tacticalPlan, setPieceTakers: currentSetPieceTakers(), assignedRoles: currentAssignedRoles() },
+      {
+        country,
+        lineup: startingEleven,
+        tactic,
+        tacticalPlan,
+        setPieceTakers: currentSetPieceTakers(),
+        assignedRoles: currentAssignedRoles(),
+        assignedRoleDetails: currentAssignedRoleDetails(),
+      },
       players,
       tournamentGroups,
     );
@@ -1323,12 +1407,14 @@ export function App() {
                   <div className="pitch-lines" aria-hidden="true" />
                   {selectedFormation.slots.map((slot) => {
                     const assigned = squad.find((player) => player.id === lineupAssignments[slot.id]);
+                    const compatibility = assigned ? playerRoleCompatibility(assigned, roleForSlot(slot)) : 1;
                     return (
                       <button
                         className={[
                           assigned ? "pitch-slot is-filled" : "pitch-slot",
                           selectedMovePlayerId && !assigned ? "is-targetable" : "",
                           assigned?.id === selectedMovePlayerId ? "is-selected-player" : "",
+                          assigned && compatibility < 0.8 ? "is-role-warning" : "",
                         ].filter(Boolean).join(" ")}
                         draggable={Boolean(assigned)}
                         key={slot.id}
@@ -1346,7 +1432,7 @@ export function App() {
                           setDraggedPlayerId(null);
                         }}
                         style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                        title={`${slot.label} slotu`}
+                        title={`${slot.label} (${roleForSlot(slot)}) slotu${assigned ? ` · rol uyumu ${Math.round(compatibility * 100)}` : ""}`}
                       >
                         <span>{slot.label}</span>
                         <strong>{assigned?.name.split(" ").slice(-1)[0] ?? "Boş"}</strong>
@@ -1380,7 +1466,7 @@ export function App() {
                           <span className="rating">{player.overall}</span>
                           <span>
                             <strong>{player.name}</strong>
-                            <small>{player.position} · {player.club}</small>
+                            <small>{(player.roles ?? [player.primaryRole ?? fallbackRole(player)]).join(", ")} · {player.club}</small>
                           </span>
                         </button>
                       );
@@ -1438,6 +1524,14 @@ export function App() {
                 <div>
                   <dt>Overall</dt>
                   <dd>{averageOverall(lineupPlayers)}</dd>
+                </div>
+                <div>
+                  <dt>Efektif güç</dt>
+                  <dd>{effectiveLineupOverall}</dd>
+                </div>
+                <div>
+                  <dt>Rol uyumu</dt>
+                  <dd>{lineupRoleFit}%</dd>
                 </div>
                 <div>
                   <dt>Diziliş</dt>
