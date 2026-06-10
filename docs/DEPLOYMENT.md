@@ -26,7 +26,7 @@ GitHub repository ayarlari:
 3. Custom domain icin `playdraft.me` tanimli olmali ve `Enforce HTTPS` acik olmali.
 4. `Settings > Secrets and variables > Actions > Variables` bolumune sunlari ekle:
    - `VITE_LOBBY_HOST`: backend domaini. Ornek: `wcgame-lobby.onrender.com` veya `wcgame-lobby.koyeb.app`
-   - `VITE_BASE_PATH`: custom domain icin `/`.
+   - `VITE_BASE_PATH`: artik gerekli degil; workflow `playdraft.me` root domaini icin `/` ile build alir.
 
 `VITE_BASE_PATH` secimi:
 
@@ -34,7 +34,23 @@ GitHub repository ayarlari:
 - Custom domain kullaniyorsan: `/`
 - Repo adin `USERNAME.github.io` ise: `/`
 
-Workflow bu repo icin varsayilan olarak `/` ile build alir ve `public/CNAME` dosyasi sayesinde artifact icinde `playdraft.me` domainini tasir. Repo path uzerinden yayinlamak istersen `VITE_BASE_PATH=/WCGame/` degiskenini tekrar ekleyebilirsin.
+Workflow bu repo icin her zaman `/` ile build alir ve `public/CNAME` dosyasi sayesinde artifact icinde `playdraft.me` domainini tasir. `VITE_BASE_PATH=/WCGame/` gibi bir Actions variable tanimliysa silinebilir; workflow bunu artik kullanmaz.
+
+### Custom domain sorun giderme
+
+`playdraft.me` adresinde `anilcemelemir.github.io` basligi veya profil sayfasi gorunuyorsa domain `WCGame` reposuna degil, kullanici sayfasi reposuna (`anilcemelemir.github.io`) bagli demektir.
+
+Duzeltme:
+
+1. `anilcemelemir.github.io` reposunda `Settings > Pages` bolumune gir.
+2. Custom domain alaninda `playdraft.me` varsa kaldir.
+3. `WCGame` reposunda `Settings > Pages` bolumune gir.
+4. Source alanini `GitHub Actions` yap.
+5. Custom domain alanina `playdraft.me` yaz.
+6. DNS check tamamlaninca `Enforce HTTPS` secenegini ac.
+7. `Actions > Deploy Frontend to GitHub Pages > Run workflow` ile yeniden deploy et.
+
+Registrar tarafinda HTTP -> HTTPS yonlendirme ayari gerekmez. Apex DNS kayitlari GitHub Pages IP'lerine gittigi surece sertifika ve HTTPS zorlamasi GitHub Pages tarafindan yapilir.
 
 ## Backend: Render
 
