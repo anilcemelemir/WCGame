@@ -160,6 +160,71 @@ function animationLeadTime(type: MatchAnimationType | null) {
   return 1050;
 }
 
+function selectLiveMatchEvents(events: MatchEvent[]) {
+  const sortedEvents = [...events].sort((a, b) => a.minute - b.minute);
+  const essentialTypes = new Set<MatchEvent["type"]>([
+    "kickoff",
+    "goal",
+    "penalty",
+    "free-kick",
+    "half-time",
+    "full-time",
+    "penalties",
+    "miss",
+    "post",
+    "save",
+    "yellow-card",
+    "red-card",
+  ]);
+  const selected = new Set<MatchEvent>();
+  const addEvent = (event: MatchEvent | undefined) => {
+    if (event) selected.add(event);
+  };
+
+  sortedEvents.filter((event) => essentialTypes.has(event.type) || event.suspense).forEach(addEvent);
+
+  const fillerEvents = sortedEvents.filter((event) => !selected.has(event));
+  const anchors = [8, 17, 28, 38, 52, 61, 70, 78, 85];
+  anchors.forEach((anchorMinute) => {
+    const candidate = fillerEvents
+      .filter((event) => !selected.has(event))
+      .sort((a, b) => Math.abs(a.minute - anchorMinute) - Math.abs(b.minute - anchorMinute))[0];
+    addEvent(candidate);
+  });
+
+  while (selected.size < 32) {
+    const selectedByMinute = [...selected].sort((a, b) => a.minute - b.minute);
+    let bestCandidate: MatchEvent | undefined;
+    let widestGap = 0;
+
+    fillerEvents
+      .filter((event) => !selected.has(event))
+      .forEach((event) => {
+        const previousEvents = selectedByMinute.filter((selectedEvent) => selectedEvent.minute <= event.minute);
+        const previous = previousEvents[previousEvents.length - 1];
+        const next = selectedByMinute.find((selectedEvent) => selectedEvent.minute >= event.minute);
+        const gap = (next?.minute ?? 90) - (previous?.minute ?? 0);
+        if (gap > widestGap) {
+          widestGap = gap;
+          bestCandidate = event;
+        }
+      });
+
+    if (!bestCandidate) break;
+    selected.add(bestCandidate);
+  }
+
+  const latestBeforeFullTime = [...selected].filter((event) => event.minute < 90).sort((a, b) => b.minute - a.minute)[0];
+  if (!latestBeforeFullTime || latestBeforeFullTime.minute < 76) {
+    const lateEvent = fillerEvents
+      .filter((event) => event.minute >= 76 && event.minute < 90)
+      .sort((a, b) => b.minute - a.minute)[0];
+    addEvent(lateEvent);
+  }
+
+  return [...selected].sort((a, b) => a.minute - b.minute);
+}
+
 function goalDifference(standing: Standing) {
   return standing.goalsFor - standing.goalsAgainst;
 }
@@ -820,17 +885,7 @@ export function App() {
     setGoalSuspense(false);
     setActiveAnimation(null);
 
-    const fullTimeEvent = match.events.find((event) => event.type === "full-time");
-    const penaltiesEvent = match.events.find((event) => event.type === "penalties");
-    const eventsToPlay = match.events.slice(0, 24);
-    match.events
-      .filter((event) => event.type === "goal")
-      .forEach((event) => {
-        if (!eventsToPlay.includes(event)) eventsToPlay.push(event);
-      });
-    if (penaltiesEvent && !eventsToPlay.includes(penaltiesEvent)) eventsToPlay.push(penaltiesEvent);
-    if (fullTimeEvent && !eventsToPlay.includes(fullTimeEvent)) eventsToPlay.push(fullTimeEvent);
-    eventsToPlay.sort((a, b) => a.minute - b.minute);
+    const eventsToPlay = selectLiveMatchEvents(match.events);
     let completed = false;
     let index = 0;
     let safetyTimer = 0;
@@ -1181,7 +1236,7 @@ export function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">Ücretsiz futbol simülasyonu</p>
-          <h1>Hafif Sıklet Dünya Kupası Menajeri</h1>
+          <h1>Dünya Kupası Menajeri</h1>
         </div>
         <div className="topbar__metric">
           <Trophy size={18} />

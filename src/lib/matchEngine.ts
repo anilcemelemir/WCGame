@@ -893,9 +893,17 @@ function createNarrative(
   homeGoalMinutes.forEach((minute) => addGoalSequence(home, minute));
   awayGoalMinutes.forEach((minute) => addGoalSequence(away, minute));
 
-  const observationMinutes = [9, 23, 39, 53, 67, 82];
-  observationMinutes.forEach((minute) => {
-    if (Math.random() > 0.72) return;
+  const observationWindows = [
+    { minute: 9, chance: 0.36 },
+    { minute: 23, chance: 0.4 },
+    { minute: 39, chance: 0.46 },
+    { minute: 53, chance: 0.56 },
+    { minute: 67, chance: 0.68 },
+    { minute: 76, chance: 0.78 },
+    { minute: 84, chance: 0.9 },
+  ];
+  observationWindows.forEach(({ minute, chance }) => {
+    if (Math.random() > chance) return;
     events.push(tacticalObservation(home, away, homeProfile, awayProfile, minute));
   });
 
