@@ -49,6 +49,45 @@ interface TournamentStep {
   kind: "group" | "knockout";
 }
 
+type PlatformGameId = "worldCupManager" | "penaltyArena" | "clubDraft" | "careerRush";
+
+const platformGames: Array<{
+  id: PlatformGameId;
+  title: string;
+  label: string;
+  description: string;
+  status: "oynanabilir" | "yakinda";
+}> = [
+  {
+    id: "worldCupManager",
+    title: "Dünya Kupası Menajeri",
+    label: "48 takımlı online turnuva",
+    description: "Arkadaşlarınla oda kur, milli takım seç, kadro yap ve turnuvayı hafta hafta simüle et.",
+    status: "oynanabilir",
+  },
+  {
+    id: "penaltyArena",
+    title: "Penaltı Arenası",
+    label: "Hızlı refleks oyunu",
+    description: "Şut yönü, kaleci hamlesi ve seri penaltı psikolojisi üzerine kısa maçlar.",
+    status: "yakinda",
+  },
+  {
+    id: "clubDraft",
+    title: "Kulüp Draftı",
+    label: "Kadronu kur, kapış",
+    description: "Bütçeyle futbolcu seç, kimya kur ve arkadaşlarına karşı mini lig oyna.",
+    status: "yakinda",
+  },
+  {
+    id: "careerRush",
+    title: "Kariyer Sprinti",
+    label: "Sezonu 10 dakikada bitir",
+    description: "Transfer, taktik ve fikstür kararlarını hızlı vererek kısa kariyer koşuları yap.",
+    status: "yakinda",
+  },
+];
+
 function averageOverall(players: Player[]) {
   if (!players.length) return 0;
   return Math.round(players.reduce((sum, player) => sum + player.overall, 0) / players.length);
@@ -329,6 +368,7 @@ export function App() {
   const [players, setPlayers] = useState<Player[]>(samplePlayers);
   const [dataStatus, setDataStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const availableCountries = useMemo(() => getAvailableCountries(players), [players]);
+  const [activePlatformGame, setActivePlatformGame] = useState<PlatformGameId>("worldCupManager");
   const [playMode, setPlayMode] = useState<PlayMode | null>(null);
   const [nickname, setNickname] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -1092,52 +1132,127 @@ export function App() {
     setLobbyConnectingAction(null);
   }
 
+  function renderPlatformHeader() {
+    return (
+      <header className="platform-header">
+        <div className="platform-header__brand">
+          <img src={worldCupLogoUrl} alt="PlayDraft" />
+          <div>
+            <span>PlayDraft</span>
+            <strong>Futbol Oyunları</strong>
+          </div>
+        </div>
+        <nav className="platform-tabs" aria-label="Futbol oyunları">
+          {platformGames.map((game) => (
+            <button
+              className={activePlatformGame === game.id ? "platform-tab is-active" : "platform-tab"}
+              key={game.id}
+              onClick={() => setActivePlatformGame(game.id)}
+              type="button"
+            >
+              <span>{game.title}</span>
+              <small>{game.status === "oynanabilir" ? "Oynanabilir" : "Yakında"}</small>
+            </button>
+          ))}
+        </nav>
+      </header>
+    );
+  }
+
+  if (activePlatformGame !== "worldCupManager") {
+    const selectedGame = platformGames.find((game) => game.id === activePlatformGame) ?? platformGames[0];
+
+    return (
+      <main className="app-shell">
+        {renderPlatformHeader()}
+        <section className="workspace platform-coming-soon">
+          <div className="platform-kicker">Yeni oyun alanı</div>
+          <h1>{selectedGame.title}</h1>
+          <p>{selectedGame.description}</p>
+          <div className="platform-preview-grid">
+            <article>
+              <strong>Oyun tipi</strong>
+              <span>{selectedGame.label}</span>
+            </article>
+            <article>
+              <strong>Durum</strong>
+              <span>Yakında geliştirilecek</span>
+            </article>
+            <article>
+              <strong>Platform</strong>
+              <span>Web, mobil uyumlu, arkadaşlarla oynanabilir</span>
+            </article>
+          </div>
+          <button className="primary-action" onClick={() => setActivePlatformGame("worldCupManager")} type="button">
+            <Trophy size={18} />
+            Dünya Kupası Menajeri'ne dön
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   if (!playMode) {
     return (
       <main className="app-shell">
-        <section className="entry-screen">
-          <div className="entry-panel">
-            <div className="entry-brand">
-              <img src={worldCupLogoUrl} alt="Dünya Kupası" />
-              <span>2026 Dünya Kupası</span>
+        {renderPlatformHeader()}
+        <section className="entry-screen entry-screen--platform">
+          <div className="platform-entry-layout">
+            <div className="entry-panel">
+              <div className="entry-brand">
+                <img src={worldCupLogoUrl} alt="Dünya Kupası" />
+                <span>2026 Dünya Kupası</span>
+              </div>
+              <p className="eyebrow">Online Dünya Kupası</p>
+              <h1>Dünyanın Oyununa Hoş Geldiniz</h1>
+              <label className="entry-field">
+                <span>Takma adınız</span>
+                <input
+                  maxLength={24}
+                  onChange={(event) => setNickname(event.target.value)}
+                  placeholder="Örn. Anıl"
+                  value={nickname}
+                />
+              </label>
+              <div className="entry-actions">
+                <button className="primary-action" disabled={!canUseOnline || isLobbyConnecting} onClick={startOffline}>
+                  <Play size={18} />
+                  Offline oyna
+                </button>
+                <button className="secondary-action" disabled={!canCreateLobby} onClick={() => connectLobby("create")}>
+                  <Users size={18} />
+                  {lobbyConnectingAction === "create" ? "Kuruluyor..." : "Oda kur"}
+                </button>
+              </div>
+              <form className="join-row" onSubmit={(event) => {
+                event.preventDefault();
+                if (canJoinLobby) connectLobby("join");
+              }}>
+                <input
+                  maxLength={6}
+                  inputMode="text"
+                  onChange={(event) => setJoinCode(normalizeRoomCode(event.target.value))}
+                  placeholder="Oda kodu"
+                  value={joinCode}
+                />
+                <button disabled={!canJoinLobby} type="submit">
+                  {lobbyConnectingAction === "join" ? "Katılıyor..." : "Katıl"}
+                </button>
+              </form>
+              {lobbyError && <p className={isLobbyConnecting ? "form-status" : "form-error"}>{lobbyError}</p>}
             </div>
-            <p className="eyebrow">Online Dünya Kupası</p>
-            <h1>Dünyanın Oyununa Hoş Geldiniz</h1>
-            <label className="entry-field">
-              <span>Takma adınız</span>
-              <input
-                maxLength={24}
-                onChange={(event) => setNickname(event.target.value)}
-                placeholder="Örn. Anıl"
-                value={nickname}
-              />
-            </label>
-            <div className="entry-actions">
-              <button className="primary-action" disabled={!canUseOnline || isLobbyConnecting} onClick={startOffline}>
-                <Play size={18} />
-                Offline oyna
-              </button>
-              <button className="secondary-action" disabled={!canCreateLobby} onClick={() => connectLobby("create")}>
-                <Users size={18} />
-                {lobbyConnectingAction === "create" ? "Kuruluyor..." : "Oda kur"}
-              </button>
-            </div>
-            <form className="join-row" onSubmit={(event) => {
-              event.preventDefault();
-              if (canJoinLobby) connectLobby("join");
-            }}>
-              <input
-                maxLength={6}
-                inputMode="text"
-                onChange={(event) => setJoinCode(normalizeRoomCode(event.target.value))}
-                placeholder="Oda kodu"
-                value={joinCode}
-              />
-              <button disabled={!canJoinLobby} type="submit">
-                {lobbyConnectingAction === "join" ? "Katılıyor..." : "Katıl"}
-              </button>
-            </form>
-            {lobbyError && <p className={isLobbyConnecting ? "form-status" : "form-error"}>{lobbyError}</p>}
+            <aside className="platform-next-panel">
+              <span>Platform planı</span>
+              <h2>Sıradaki futbol oyunları</h2>
+              <div className="platform-mini-list">
+                {platformGames.filter((game) => game.id !== "worldCupManager").map((game) => (
+                  <button key={game.id} onClick={() => setActivePlatformGame(game.id)} type="button">
+                    <strong>{game.title}</strong>
+                    <small>{game.label}</small>
+                  </button>
+                ))}
+              </div>
+            </aside>
           </div>
         </section>
       </main>
@@ -1147,6 +1262,7 @@ export function App() {
   if (playMode === "online" && lobbyRoom?.status === "lobby") {
     return (
       <main className="app-shell">
+        {renderPlatformHeader()}
         <header className="topbar">
           <div>
             <p className="eyebrow">Online lobi</p>
@@ -1233,6 +1349,7 @@ export function App() {
 
   return (
     <main className="app-shell">
+      {renderPlatformHeader()}
       <header className="topbar">
         <div>
           <p className="eyebrow">Ücretsiz futbol simülasyonu</p>
